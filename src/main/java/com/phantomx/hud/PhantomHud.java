@@ -320,7 +320,7 @@ public final class PhantomHud {
             HudDraw.line(m, border, x, size + 9f, x, 0, 0.7f);
             TextureAtlasSprite sprite = mc.getMobEffectTextures().get(e.getEffect());
             g.blit(Math.round(x + 1f), 1, 0, 16, 16, sprite);
-            String t = MobEffectUtil.formatDuration(e, 1.0f);
+            String t = MobEffectUtil.formatDuration(e, 1.0f).getString();
             g.pose().pushPose();
             g.pose().translate(x + size / 2f, size + 1.5f, 0);
             g.pose().scale(0.6f, 0.6f, 1f);
