@@ -35,3 +35,17 @@ mandatory=false
 versionRange="[0,)"
 ordering="AFTER"
 side="CLIENT"
+
+[[dependencies.${mod_id}]]
+modId="advancedcompass"
+mandatory=false
+versionRange="[0,)"
+ordering="AFTER"
+side="CLIENT"
+
+[[dependencies.${mod_id}]]
+modId="remnantminimaps"
+mandatory=false
+versionRange="[0,)"
+ordering="AFTER"
+side="CLIENT"
