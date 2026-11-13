@@ -14,28 +14,26 @@ import net.minecraft.world.entity.player.Player;
 import org.joml.Matrix4f;
 
 /**
- * Status effects: small square tiles with a coloured top stripe and the time underneath, in rows on the left above the
- * skill row. Square and flat on purpose, so they never read as the diamond skill icons.
+ * Status effects on the right edge: small square tiles with a coloured top stripe and the time underneath. Rows stack
+ * upward, extra columns grow to the left. Square and flat on purpose, so they never read as the diamond skill icons.
  */
 final class EffectsStrip {
     private EffectsStrip() {}
 
     private static final float TILE = 17f, TEXT_H = 7f, GAP = 3f;
 
-    /** bottomY is the screen y the lowest row must stay above. */
-    static void render(GuiGraphics g, Font font, Player p, float scale, float bottomY) {
+    static void render(GuiGraphics g, Font font, Player p, int sw, int sh, float scale) {
         if (p.getActiveEffects().isEmpty()) return;
         List<MobEffectInstance> list = new ArrayList<>(p.getActiveEffects());
         Minecraft mc = Minecraft.getInstance();
-        float left = HudConfig.MARGIN_X.get() + scale * (PlayerBlock.CX - PlayerBlock.R);
         g.pose().pushPose();
-        g.pose().translate(left, bottomY - 4f * scale, 0);
+        g.pose().translate(sw - 8f * scale, sh - HudConfig.EFFECTS_Y.get() * scale, 0);
         g.pose().scale(scale, scale, 1f);
-        int perRow = 9;
-        for (int i = 0; i < list.size() && i < 27; i++) {
+        int perCol = 6;
+        for (int i = 0; i < list.size() && i < 24; i++) {
             MobEffectInstance e = list.get(i);
-            float x = (i % perRow) * (TILE + GAP);
-            float y = -((i / perRow) + 1) * (TILE + TEXT_H + GAP) + GAP;
+            float x = -TILE - (i / perCol) * (TILE + GAP + 1f);
+            float y = -((i % perCol) + 1) * (TILE + TEXT_H + GAP) + GAP;
             Matrix4f m = g.pose().last().pose();
             boolean good = e.getEffect().isBeneficial();
             int accent = good ? argb(120, 190, 150, 255) : RED;

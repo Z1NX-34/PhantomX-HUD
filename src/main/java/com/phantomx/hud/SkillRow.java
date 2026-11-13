@@ -14,7 +14,7 @@ import org.joml.Matrix4f;
 final class SkillRow {
     private SkillRow() {}
 
-    private static final float BIG = 28f, SMALL_HS = 11f;
+    private static final float BIG = 38f, SMALL_HS = 11f;
 
     /** Draws the row and returns the screen y of its top edge (or the crest top when there is nothing to draw). */
     static float render(GuiGraphics g, Player p, int sh, float scale, float partial) {

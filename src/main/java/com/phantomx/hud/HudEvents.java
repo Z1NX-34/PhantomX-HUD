@@ -8,6 +8,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.gui.overlay.GuiOverlayManager;
+import net.minecraftforge.client.gui.overlay.NamedGuiOverlay;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -59,7 +61,8 @@ public final class HudEvents {
                     || id.equals(VanillaGuiOverlay.FOOD_LEVEL.id())
                     || (HudConfig.SHOW_XP.get() && id.equals(VanillaGuiOverlay.EXPERIENCE_BAR.id()))
                     || (HudConfig.SHOW_EFFECTS.get() && id.equals(VanillaGuiOverlay.POTION_ICONS.id()))
-                    || (HudConfig.SHOW_COMPASS.get() && id.equals(ADV_COMPASS));
+                    || (HudConfig.SHOW_COMPASS.get() && id.equals(ADV_COMPASS))
+                    || (HudConfig.SHOW_BOSS.get() && !BossBars.unavailable() && id.equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id()));
             if (!hide && HudConfig.HIDE_OTHER_HUDS.get()) {
                 for (ResourceLocation r : SCH) {
                     if (r.equals(id)) {
@@ -111,21 +114,6 @@ public final class HudEvents {
             e.setPosX(e.getPosX() + Math.round(HudConfig.CHAT_SHIFT_X.get() * scale));
             e.setPosY(e.getPosY() - Math.round(HudConfig.CHAT_SHIFT_Y.get() * scale));
         }
-
-        @SubscribeEvent
-        public static void boss(CustomizeGuiOverlayEvent.BossEventProgress e) {
-            if (!HudConfig.ENABLED.get() || !HudConfig.SHOW_BOSS.get()) return;
-            e.setCanceled(true);
-            try {
-                Minecraft mc = Minecraft.getInstance();
-                int idx = Math.max(0, (e.getY() - 12) / Math.max(1, e.getIncrement()));
-                BossBars.draw(e.getGuiGraphics(), e.getBossEvent(), idx,
-                        mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(),
-                        HudConfig.SCALE.get().floatValue());
-            } catch (Throwable t) {
-                LOG.warn("boss bar error: {}", t.toString());
-            }
-        }
     }
 
     private static void render(GuiGraphics g, float partial, int sw, int sh) {
@@ -133,12 +121,29 @@ public final class HudEvents {
         Player p = mc.player;
         if (p == null || mc.options.hideGui || p.isSpectator()) return;
         float scale = HudConfig.SCALE.get().floatValue();
+        logOverlaysOnce();
 
         if (HudConfig.SHOW_COMPASS.get()) CompassBar.render(g, mc.font, p, sw, scale, partial);
         PlayerBlock.render(g, p, sw, sh, scale);
         float top = PlayerBlock.crestTopScreenY(sh, scale);
         if (HudConfig.SHOW_SKILLS.get()) top = SkillRow.render(g, p, sh, scale, partial);
         if (HudConfig.SHOW_EQUIPMENT.get()) EquipmentSlots.render(g, mc.font, p, sw, sh, scale, partial);
-        if (HudConfig.SHOW_EFFECTS.get()) EffectsStrip.render(g, mc.font, p, scale, top);
+        if (HudConfig.SHOW_EFFECTS.get()) EffectsStrip.render(g, mc.font, p, sw, sh, scale);
+        if (HudConfig.SHOW_BOSS.get()) BossBars.renderAll(g, sw, sh, scale);
+    }
+
+    private static boolean logged;
+
+    /** Writes every registered overlay id to the log once, so ids for the hide list can be looked up. */
+    private static void logOverlaysOnce() {
+        if (logged) return;
+        logged = true;
+        try {
+            StringBuilder sb = new StringBuilder();
+            for (NamedGuiOverlay o : GuiOverlayManager.getOverlays()) sb.append(o.id()).append(", ");
+            LOG.info("Registered HUD overlays: {}", sb);
+        } catch (Throwable t) {
+            LOG.warn("Could not list overlays: {}", t.toString());
+        }
     }
 }

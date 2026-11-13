@@ -169,8 +169,8 @@ final class PlayerBlock {
         bar(g, font, true, healthY, 11f, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
         if (p.getAbsorptionAmount() > 0f) {
             float ab = clamp01(p.getAbsorptionAmount() / Math.max(1f, p.getMaxHealth()));
-            float x0 = Math.max(edge(true, healthY), edge(true, healthY + 11f)) + GAP;
-            line(g.pose().last().pose(), argb(255, 214, 110, 255), x0 + 11f, healthY + 12.6f, x0 + 11f + (HEALTH_LEN - 22f) * ab, healthY + 12.6f, 1.3f);
+            bar(g, font, true, healthY - 6.6f, 5.6f, HEALTH_LEN * 0.62f, ab, GOLD, argb(150, 110, 44, 255), -1f,
+                    String.valueOf(Math.round(p.getAbsorptionAmount())));
         }
 
         float staminaY = CY + R * 0.20f;
@@ -188,9 +188,9 @@ final class PlayerBlock {
         return edge(upper, y) + GAP;
     }
 
-    /** Right boundary mirrors the left slope (45 degrees). xr is the bar's outermost x (top for upper bars, bottom for lower). */
+    /** Right boundary runs parallel to the left one (same 45 degree slope). xr is the bar's outermost x (bottom for upper bars, top for lower). */
     private static float right(boolean upper, float y0, float h, float xr, float y) {
-        return upper ? xr - (y - y0) : xr - h + (y - y0);
+        return upper ? xr - h + (y - y0) : xr - (y - y0);
     }
 
     private static void strip(Matrix4f m, int color, boolean upper, float y0, float h, float ya, float yb, float xr, float insX) {
@@ -201,7 +201,7 @@ final class PlayerBlock {
 
     /**
      * One bar whose left end follows the crest edge (upper=true follows the top-right slope, false the bottom-right one)
-     * and whose right end mirrors that slope. Text is drawn inside as current/max.
+     * and whose right end follows the same slope. Text is drawn inside as current/max.
      */
     private static void bar(GuiGraphics g, Font font, boolean upper, float y0, float h, float length, float pct, int col, int colDark, float trail, String text) {
         Matrix4f m = g.pose().last().pose();
@@ -213,11 +213,11 @@ final class PlayerBlock {
         strip(m, withAlpha(INK, 248), upper, y0, h, y0, y1, xr, 0f);
         float ins = 1.1f, insX = ins * 1.45f;
         if (trail > pct) {
-            float xt = start + h + (length - h) * trail;
+            float xt = start + length * clamp01(trail);
             strip(m, withAlpha(BONE, 235), upper, y0, h, y0 + ins, y1 - ins, xt, insX);
         }
         if (pct > 0.002f) {
-            float xf = start + h + (length - h) * clamp01(pct);
+            float xf = start + length * clamp01(pct);
             strip(m, col, upper, y0, h, y0 + ins, y1 - ins, xf, insX);
             float ym = y0 + h * 0.5f;
             strip(m, withAlpha(colDark, 205), upper, y0, h, ym, y1 - ins, xf, insX);
@@ -243,45 +243,88 @@ final class PlayerBlock {
         float y0 = CY + R * 0.20f + 19.5f;
         float x0 = CX + R - (y0 - CY) + GAP + 3f;
         int armor = p.getArmorValue(), food = p.getFoodData().getFoodLevel();
-        float after = mini(g, font, x0, y0, clamp01(armor / 20f), argb(150, 168, 206, 255), argb(84, 100, 130, 255), armor);
-        mini(g, font, after + 8f, y0, clamp01(food / 20f), argb(222, 150, 56, 255), argb(130, 84, 34, 255), food);
+        float w = 40f;
+        mini(g, font, x0, y0, w, true, clamp01(armor / 20f), argb(150, 168, 206, 255), argb(84, 100, 130, 255), armor);
+        mini(g, font, x0 + w + 6f, y0, w, false, clamp01(food / 20f), argb(222, 150, 56, 255), argb(130, 84, 34, 255), food);
     }
 
-    /** Small rectangular gauge with its value to the right. Returns the x after the value text. */
-    private static float mini(GuiGraphics g, Font font, float x, float y, float pct, int col, int dark, int value) {
+    /** Small rectangular gauge: icon plate on the left end, fill with the value inside. */
+    private static void mini(GuiGraphics g, Font font, float x, float y, float w, boolean armor, float pct, int col, int dark, int value) {
         Matrix4f m = g.pose().last().pose();
-        float w = 24f, h = 5f;
-        rect(m, withAlpha(GOLD, 210), x - 0.8f, y - 0.8f, x + w + 0.8f, y + h + 0.8f);
+        float h = 8f, tab = 11f;
+        rect(m, withAlpha(GOLD, 215), x - 0.8f, y - 0.8f, x + w + 0.8f, y + h + 0.8f);
         rect(m, withAlpha(INK, 248), x, y, x + w, y + h);
+        // icon plate
+        rect(m, withAlpha(argb(40, 36, 70, 255), 255), x, y, x + tab, y + h);
+        line(m, withAlpha(GOLD, 190), x + tab, y, x + tab, y + h, 0.7f);
+        g.pose().pushPose();
+        g.pose().translate(x + tab / 2f, y + h / 2f, 0f);
+        g.pose().scale(0.82f, 0.82f, 1f);
+        Matrix4f mi = g.pose().last().pose();
+        if (armor) shield(mi, 0f, 0f, col); else drumstick(mi, 0f, 0f, col);
+        g.pose().popPose();
+        // fill
+        float fx = x + tab + 0.9f, fw = w - tab - 1.8f;
         if (pct > 0.002f) {
-            rect(m, col, x + 0.8f, y + 0.8f, x + 0.8f + (w - 1.6f) * pct, y + h - 0.8f);
-            rect(m, withAlpha(dark, 200), x + 0.8f, y + h * 0.5f, x + 0.8f + (w - 1.6f) * pct, y + h - 0.8f);
+            rect(m, withAlpha(dark, 255), fx, y + 0.9f, fx + fw * pct, y + h - 0.9f);
+            rect(m, col, fx, y + 0.9f, fx + fw * pct, y + h * 0.5f);
         }
         String t = String.valueOf(value);
+        float ts = 0.72f;
         g.pose().pushPose();
-        g.pose().translate(x + w + 3f, y - 0.4f, 0f);
-        g.pose().scale(0.8f, 0.8f, 1f);
-        g.drawString(font, t, 0, 0, BONE, true);
+        g.pose().translate(fx + fw / 2f, y + (h - 7f * ts) / 2f, 0f);
+        g.pose().scale(ts, ts, 1f);
+        g.drawString(font, t, Math.round(-font.width(t) / 2f), 0, WHITE, true);
         g.pose().popPose();
-        return x + w + 3f + font.width(t) * 0.8f;
+    }
+
+    private static void shield(Matrix4f m, float x, float y, int tint) {
+        poly(m, GOLD, x - 3.6f, y - 3.9f, x + 3.6f, y - 3.9f, x + 3.6f, y + 0.4f, x, y + 4.4f, x - 3.6f, y + 0.4f);
+        poly(m, tint, x - 2.6f, y - 2.9f, x + 2.6f, y - 2.9f, x + 2.6f, y + 0.1f, x, y + 3.2f, x - 2.6f, y + 0.1f);
+        poly(m, withAlpha(WHITE, 100), x - 2.6f, y - 2.9f, x, y - 2.9f, x, y + 3.2f, x - 2.6f, y + 0.1f);
+    }
+
+    private static void drumstick(Matrix4f m, float x, float y, int tint) {
+        line(m, BONE, x + 0.5f, y + 0.5f, x + 3.4f, y + 3.4f, 1.3f);
+        ellipse(m, BONE, x + 3.0f, y + 4.0f, 1.0f, 1.0f);
+        ellipse(m, BONE, x + 4.0f, y + 3.0f, 1.0f, 1.0f);
+        ellipse(m, GOLD, x - 1.2f, y - 1.2f, 3.5f, 3.2f);
+        ellipse(m, tint, x - 1.2f, y - 1.2f, 2.8f, 2.5f);
+        ellipse(m, withAlpha(WHITE, 110), x - 2.2f, y - 2.2f, 1.1f, 0.9f);
     }
 
     // ------------------------------------------------------------------------------------------ xp
 
+    private static final int XP_GREEN = argb(96, 188, 104, 255), XP_DARK = argb(44, 112, 62, 255), XP_LIGHT = argb(190, 244, 170, 255);
+
     private static void drawXp(GuiGraphics g, Font font, Player p, int sw, int sh, float scale) {
         g.pose().pushPose();
-        g.pose().translate(sw / 2f, sh - 22f - 12f, 0);
+        g.pose().translate(sw / 2f, sh - 22f - 13f, 0);
         g.pose().scale(scale, scale, 1f);
         Matrix4f m = g.pose().last().pose();
-        float w = 105f, h = 3.2f, sl = 2.5f, x0 = -w / 2f;
-        poly(m, withAlpha(GOLD, 170), x0 - 0.7f, -0.7f, x0 + w + 0.7f, -0.7f, x0 + w - sl + 0.2f, h + 0.7f, x0 - 0.7f, h + 0.7f);
-        poly(m, withAlpha(INK, 240), x0 + sl, 0, x0 + w, 0, x0 + w - sl, h, x0, h);
-        float fill = (w - 1f) * clamp01(p.experienceProgress);
-        if (fill > 0.5f) poly(m, withAlpha(GOLD, 245), x0 + sl + 0.5f, 0.5f, x0 + 0.5f + fill, 0.5f, x0 + fill - sl + 0.5f, h - 0.5f, x0 + 0.5f, h - 0.5f);
-        diamondFill(m, INK, 0, h / 2f, 7f, 6f);
-        diamondLine(m, GOLD, 0, h / 2f, 7f, 6f, 0.8f);
+        float w = 110f, h = 4.4f, sl = 2.5f, x0 = -w / 2f;
+        poly(m, withAlpha(GOLD, 180), x0 - 0.8f, -0.8f, x0 + w + 0.8f, -0.8f, x0 + w - sl + 0.3f, h + 0.8f, x0 - 0.8f, h + 0.8f);
+        poly(m, withAlpha(INK, 245), x0 + sl, 0, x0 + w, 0, x0 + w - sl, h, x0, h);
+        float fill = (w - 1.6f) * clamp01(p.experienceProgress);
+        if (fill > 0.5f) {
+            float fx0 = x0 + 0.8f, fx1 = fx0 + fill;
+            // base: bright upper half, darker lower half
+            poly(m, XP_DARK, fx0 + sl, 0.8f, fx1, 0.8f, fx1 - sl, h - 0.8f, fx0, h - 0.8f);
+            poly(m, XP_GREEN, fx0 + sl, 0.8f, fx1, 0.8f, fx1 - sl * 0.5f, h * 0.5f, fx0 + sl * 0.5f, h * 0.5f);
+            // diagonal stripe pattern, only where a full stripe fits
+            for (float sx = fx0 + 4f; sx < fx1 - 3.2f; sx += 4.2f) {
+                poly(m, withAlpha(XP_LIGHT, 120), sx + 1.6f, 0.8f, sx + 2.8f, 0.8f, sx + 1.2f, h - 0.8f, sx + 0f, h - 0.8f);
+            }
+            line(m, withAlpha(XP_LIGHT, 200), fx0 + sl, 0.9f, fx1, 0.9f, 0.5f);
+        }
         String lvl = String.valueOf(p.experienceLevel);
-        g.drawString(font, lvl, Math.round(-font.width(lvl) / 2f), Math.round(h / 2f - 4f), BONE, true);
+        float tw = font.width(lvl);
+        float hw = Math.max(9f, tw / 2f + 6f), hh = Math.max(8f, hw * 0.9f);
+        diamondFill(m, INK, 0, h / 2f, hw, hh);
+        diamondFill(m, withAlpha(argb(40, 90, 56, 255), 160), 0, h / 2f, hw - 2.4f, hh - 2.2f);
+        diamondLine(m, GOLD, 0, h / 2f, hw, hh, 0.9f);
+        diamondLine(m, withAlpha(XP_GREEN, 170), 0, h / 2f, hw - 3f, hh - 2.8f, 0.45f);
+        g.drawString(font, lvl, Math.round(-tw / 2f), Math.round(h / 2f - 3.5f), BONE, true);
         g.pose().popPose();
     }
 

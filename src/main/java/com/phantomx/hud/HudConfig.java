@@ -10,7 +10,7 @@ public final class HudConfig {
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDE_OVERLAYS;
     public static final ForgeConfigSpec.IntValue CHAT_SHIFT_X, CHAT_SHIFT_Y, ITEM_NAME_RAISE;
     public static final ForgeConfigSpec.DoubleValue SCALE;
-    public static final ForgeConfigSpec.IntValue MARGIN_X, MARGIN_Y, SKILLS_Y, EQUIP_X, EQUIP_Y;
+    public static final ForgeConfigSpec.IntValue MARGIN_X, MARGIN_Y, SKILLS_Y, EQUIP_X, EQUIP_Y, EFFECTS_Y, BOSS_MAX;
     public static final ForgeConfigSpec.IntValue COMPASS_WIDTH, COMPASS_RANGE, COMPASS_VERTICAL;
 
     static {
@@ -29,7 +29,8 @@ public final class HudConfig {
         SHOW_XP = b.comment("Short centred XP bar above the hotbar.").define("show_xp_bar", true);
         b.pop();
         b.push("effects");
-        SHOW_EFFECTS = b.comment("Potion effect tiles on the left, above the skill row.").define("show_effects", true);
+        SHOW_EFFECTS = b.comment("Potion effect tiles on the right edge.").define("show_effects", true);
+        EFFECTS_Y = b.comment("Effect tiles: distance of the lowest row from the bottom edge (GUI pixels).").defineInRange("effects_y", 46, 0, 600);
         b.pop();
         b.push("skills");
         SHOW_SKILLS = b.comment("Epic Fight special move + skill diamonds above the player block (needs Epic Fight).").define("show_skills", true);
@@ -37,11 +38,12 @@ public final class HudConfig {
         b.pop();
         b.push("equipment");
         SHOW_EQUIPMENT = b.comment("Four diamond slots at the bottom-right: weapon, offhand, consumable, spell.").define("show_equipment", true);
-        EQUIP_X = b.comment("Slot cluster centre, distance right of the hotbar's right edge (GUI pixels).").defineInRange("equipment_offset_x", 56, 0, 400);
+        EQUIP_X = b.comment("Slot cluster centre, distance right of the hotbar's right edge (GUI pixels).").defineInRange("equipment_offset_x", 112, 0, 400);
         EQUIP_Y = b.comment("Slot cluster centre, distance from the bottom edge (GUI pixels).").defineInRange("equipment_y", 34, 0, 400);
         b.pop();
         b.push("boss");
-        SHOW_BOSS = b.comment("Custom boss bars (replaces the vanilla ones).").define("show_boss_bars", true);
+        SHOW_BOSS = b.comment("Replace every vanilla-style boss bar (including other mods' custom bosses that use boss events) with the PhantomX one.").define("show_boss_bars", true);
+        BOSS_MAX = b.comment("Maximum number of boss bars shown at once.").defineInRange("max_boss_bars", 3, 1, 8);
         b.pop();
         b.push("compass");
         SHOW_COMPASS = b.comment("Thin compass at the top. Also hides the Advanced Compass mod's own bar while on.").define("show_compass", true);
@@ -53,8 +55,8 @@ public final class HudConfig {
         b.pop();
         b.push("layout");
         HIDE_OVERLAYS = b.comment("Other mods' HUD overlays to hide while PhantomX HUD is on. 'modid:*' hides every overlay of a mod, a trailing * matches a prefix.")
-                .defineList("hide_overlays", java.util.List.of("epicfight:*", "irons_spellbooks:mana*"), o -> o instanceof String);
-        MOVE_CHAT = b.comment("Move the chat out of the way of the player block and the equipment slots.").define("move_chat", true);
+                .defineList("hide_overlays", java.util.List.of("epicfight:*", "irons_spellbooks:mana*", "irons_spellbooks:spell*"), o -> o instanceof String);
+        MOVE_CHAT = b.comment("Move the chat out of the way of the player block and the equipment slots.").define("move_chat", false);
         CHAT_SHIFT_X = b.comment("How far the chat moves right (GUI pixels).").defineInRange("chat_shift_x", 205, 0, 800);
         CHAT_SHIFT_Y = b.comment("How far the chat moves up (GUI pixels).").defineInRange("chat_shift_y", 24, 0, 400);
         ITEM_NAME_RAISE = b.comment("How far the held-item name moves up so it clears the XP bar (GUI pixels).").defineInRange("item_name_raise", 16, 0, 100);

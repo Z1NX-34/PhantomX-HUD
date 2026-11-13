@@ -13,7 +13,7 @@ final class IronsSpells {
     private static final Logger LOG = LogManager.getLogger("PhantomXHud/Irons");
     private static boolean failed, init;
     private static Class<?> magicData;
-    private static Method getManager, getCount, getSelected, spellOf, iconOf, cooldownOf;
+    private static Method getManager, getCount, getSelected, getIndex, getDataAt, spellOf, iconOf, cooldownOf;
 
     private static Object selectedSpell() throws Exception {
         Object mgr = getManager.invoke(null);
@@ -31,6 +31,8 @@ final class IronsSpells {
             Class<?> mgr = Class.forName("io.redspace.ironsspellbooks.api.magic.SpellSelectionManager");
             getCount = mgr.getMethod("getSpellCount");
             getSelected = mgr.getMethod("getSelectedSpellData");
+            getIndex = mgr.getMethod("getSelectionIndex");
+            getDataAt = mgr.getMethod("getSpellData", int.class);
             Class<?> data = Class.forName("io.redspace.ironsspellbooks.api.spells.SpellData");
             spellOf = data.getMethod("getSpell");
             Class<?> abs = Class.forName("io.redspace.ironsspellbooks.api.spells.AbstractSpell");
@@ -72,5 +74,55 @@ final class IronsSpells {
         } catch (Throwable t) {
             return 0f;
         }
+    }
+
+    /** One spell of the selection list. */
+    static final class Entry {
+        final ResourceLocation icon;
+        final boolean selected;
+        final float cooldown;
+
+        Entry(ResourceLocation icon, boolean selected, float cooldown) {
+            this.icon = icon;
+            this.selected = selected;
+            this.cooldown = cooldown;
+        }
+    }
+
+    /** Total number of selectable spells. */
+    static int count() {
+        if (!ready()) return 0;
+        try {
+            Object mgr = getManager.invoke(null);
+            return mgr == null ? 0 : (Integer) getCount.invoke(mgr);
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
+
+    /** Up to 'size' spells around the selected one (no wrap-around, window clamped to the list). */
+    static java.util.List<Entry> window(int size) {
+        java.util.List<Entry> out = new java.util.ArrayList<>();
+        if (!ready()) return out;
+        try {
+            Object mgr = getManager.invoke(null);
+            if (mgr == null) return out;
+            int n = (Integer) getCount.invoke(mgr);
+            if (n <= 0) return out;
+            int sel = (Integer) getIndex.invoke(mgr);
+            int from = Math.max(0, Math.min(sel - size / 2, n - size));
+            int to = Math.min(n, from + size);
+            for (int i = from; i < to; i++) {
+                Object data = getDataAt.invoke(mgr, i);
+                Object sp = data == null ? null : spellOf.invoke(data);
+                if (sp == null) continue;
+                float cd = (Float) cooldownOf.invoke(null, sp);
+                out.add(new Entry((ResourceLocation) iconOf.invoke(sp), i == sel, cd));
+            }
+        } catch (Throwable t) {
+            failed = true;
+            LOG.warn("Iron's Spells list failed: {}", t.toString());
+        }
+        return out;
     }
 }
