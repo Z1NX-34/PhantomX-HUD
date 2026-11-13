@@ -20,9 +20,9 @@ final class ResourceSources {
     private static Method isMana;
     private static Object isMaxMana;
 
-    /** Ratio 0..1 or -1 when stamina is not available. */
-    static float stamina() {
-        if (efFailed || !ModList.get().isLoaded("epicfight")) return -1f;
+    /** {current, max} or null when stamina is not available. */
+    static float[] stamina() {
+        if (efFailed || !ModList.get().isLoaded("epicfight")) return null;
         try {
             if (efEngine == null) {
                 Class<?> ce = Class.forName("yesman.epicfight.client.ClientEngine");
@@ -33,24 +33,24 @@ final class ResourceSources {
                 efMax = pp.getMethod("getMaxStamina");
             }
             Object patch = efPatch.invoke(efEngine.invoke(null));
-            if (patch == null) return -1f;
+            if (patch == null) return null;
             float max = (Float) efMax.invoke(patch);
-            if (max <= 0f) return -1f;
-            return clamp((Float) efStamina.invoke(patch) / max);
+            if (max <= 0f) return null;
+            return new float[] {Math.max(0f, (Float) efStamina.invoke(patch)), max};
         } catch (Throwable t) {
             efFailed = true;
             LOG.warn("Epic Fight stamina unavailable: {}", t.toString());
-            return -1f;
+            return null;
         }
     }
 
-    /** Ratio 0..1 or -1 when mana is not available. */
+    /** {current, max} or null when mana is not available. */
     @SuppressWarnings("unchecked")
-    static float mana() {
-        if (isFailed || !ModList.get().isLoaded("irons_spellbooks")) return -1f;
+    static float[] mana() {
+        if (isFailed || !ModList.get().isLoaded("irons_spellbooks")) return null;
         try {
             Player p = Minecraft.getInstance().player;
-            if (p == null) return -1f;
+            if (p == null) return null;
             if (isMana == null) {
                 Class<?> cm = Class.forName("io.redspace.ironsspellbooks.player.ClientMagicData");
                 isMana = cm.getMethod("getPlayerMana");
@@ -59,16 +59,12 @@ final class ResourceSources {
             }
             Attribute attr = ((RegistryObject<Attribute>) isMaxMana).get();
             double max = p.getAttributeValue(attr);
-            if (max <= 0) return -1f;
-            return clamp((float) (((Number) isMana.invoke(null)).doubleValue() / max));
+            if (max <= 0) return null;
+            return new float[] {Math.max(0f, ((Number) isMana.invoke(null)).floatValue()), (float) max};
         } catch (Throwable t) {
             isFailed = true;
             LOG.warn("Iron's Spells mana unavailable: {}", t.toString());
-            return -1f;
+            return null;
         }
-    }
-
-    private static float clamp(float v) {
-        return v < 0f ? 0f : Math.min(v, 1f);
     }
 }

@@ -107,4 +107,11 @@ final class HudDraw {
         line(m, color, cx, cy + hh, cx - hw, cy, w);
         line(m, color, cx - hw, cy, cx, cy - hh, w);
     }
+
+    /** Upper or lower half of a diamond outline (left vertex - top/bottom vertex - right vertex). */
+    static void diamondHalf(Matrix4f m, int color, float cx, float cy, float hw, float hh, float w, boolean upper) {
+        float vy = upper ? cy - hh : cy + hh;
+        line(m, color, cx - hw, cy, cx, vy, w);
+        line(m, color, cx, vy, cx + hw, cy, w);
+    }
 }

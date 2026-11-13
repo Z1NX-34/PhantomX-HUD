@@ -21,6 +21,10 @@ final class EpicFightSkills {
     private static Object slotManager;
     private static Field renderEngineF, battleUiF;
     private static Class<?> weaponInnateCls;
+    private static Method slideM;
+    private static Method itemCap;
+    private static Class<?> weaponCapCls, rangedCapCls;
+    private static boolean capFailed;
 
     /** SkillContainer objects worth drawing, in Epic Fight's slot order. Empty when Epic Fight is absent. */
     static List<Object> visible() {
@@ -47,6 +51,7 @@ final class EpicFightSkills {
                 slotManager = slot.getField("ENUM_MANAGER").get(null);
                 managerValues = slotManager.getClass().getMethod("universalValues");
                 weaponInnateCls = Class.forName("yesman.epicfight.skill.weaponinnate.WeaponInnateSkill");
+                slideM = bm.getMethod("getSlidingProgression");
                 init = true;
             }
             Object patch = enginePatch.invoke(engineGet.invoke(null));
@@ -57,7 +62,7 @@ final class EpicFightSkills {
                 if (c == null || (Boolean) containerEmpty.invoke(c)) continue;
                 Object sk = containerGetSkill.invoke(c);
                 if (sk == null || !(Boolean) skillShouldDraw.invoke(sk, c)) continue;
-                out.add(c);
+                if (weaponInnateCls.isInstance(sk)) out.add(0, c); else out.add(c);
                 if (out.size() >= 7) break;
             }
         } catch (Throwable t) {
@@ -80,6 +85,8 @@ final class EpicFightSkills {
             g.pose().translate(cx - size / 2f, cy - size / 2f, 0f);
             g.pose().scale(s, s, 1f);
             try {
+                // Epic Fight slides its icons down when you are not in combat mode; cancel that so the icon stays put
+                g.pose().translate(0f, -((Number) slideM.invoke(battleUi)).floatValue(), 0f);
                 skillDraw.invoke(skill, battleUi, container, g, 0f, 0f, partial);
             } finally {
                 g.pose().popPose();
@@ -87,6 +94,35 @@ final class EpicFightSkills {
         } catch (Throwable t) {
             failed = true;
             LOG.warn("Epic Fight skill draw failed: {}", t.toString());
+        }
+    }
+
+    /** True when this container holds a weapon-innate (special move) skill. */
+    static boolean isInnate(Object container) {
+        if (failed || !init) return false;
+        try {
+            return weaponInnateCls.isInstance(containerGetSkill.invoke(container));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** True when Epic Fight treats the stack as a combat weapon (melee or ranged capability). */
+    static boolean isCombatItem(net.minecraft.world.item.ItemStack stack) {
+        if (capFailed || !ModList.get().isLoaded("epicfight")) return false;
+        try {
+            if (itemCap == null) {
+                Class<?> caps = Class.forName("yesman.epicfight.world.capabilities.EpicFightCapabilities");
+                itemCap = caps.getMethod("getItemStackCapability", net.minecraft.world.item.ItemStack.class);
+                weaponCapCls = Class.forName("yesman.epicfight.world.capabilities.item.WeaponCapability");
+                rangedCapCls = Class.forName("yesman.epicfight.world.capabilities.item.RangedWeaponCapability");
+            }
+            Object cap = itemCap.invoke(null, stack);
+            return cap != null && (weaponCapCls.isInstance(cap) || rangedCapCls.isInstance(cap));
+        } catch (Throwable t) {
+            capFailed = true;
+            LOG.warn("Epic Fight item capability unavailable: {}", t.toString());
+            return false;
         }
     }
 }

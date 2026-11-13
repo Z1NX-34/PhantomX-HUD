@@ -6,9 +6,11 @@ public final class HudConfig {
     public static final ForgeConfigSpec SPEC;
     public static final ForgeConfigSpec.BooleanValue ENABLED, HIDE_OTHER_HUDS;
     public static final ForgeConfigSpec.BooleanValue SHOW_CHIPS, SHOW_XP, SHOW_EFFECTS, SHOW_SKILLS, SHOW_EQUIPMENT, SHOW_BOSS, SHOW_COMPASS;
-    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS, COMPASS_DEATHS;
+    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS, COMPASS_DEATHS, MOVE_CHAT;
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDE_OVERLAYS;
+    public static final ForgeConfigSpec.IntValue CHAT_SHIFT_X, CHAT_SHIFT_Y, ITEM_NAME_RAISE;
     public static final ForgeConfigSpec.DoubleValue SCALE;
-    public static final ForgeConfigSpec.IntValue MARGIN_X, MARGIN_Y, EFFECTS_Y, SKILLS_Y, EQUIP_X, EQUIP_Y;
+    public static final ForgeConfigSpec.IntValue MARGIN_X, MARGIN_Y, SKILLS_Y, EQUIP_X, EQUIP_Y;
     public static final ForgeConfigSpec.IntValue COMPASS_WIDTH, COMPASS_RANGE, COMPASS_VERTICAL;
 
     static {
@@ -27,17 +29,16 @@ public final class HudConfig {
         SHOW_XP = b.comment("Short centred XP bar above the hotbar.").define("show_xp_bar", true);
         b.pop();
         b.push("effects");
-        SHOW_EFFECTS = b.comment("Potion effect strip on the right edge.").define("show_effects", true);
-        EFFECTS_Y = b.comment("Effect strip distance from the bottom edge (GUI pixels).").defineInRange("effects_y", 130, 0, 600);
+        SHOW_EFFECTS = b.comment("Potion effect tiles on the left, above the skill row.").define("show_effects", true);
         b.pop();
         b.push("skills");
-        SHOW_SKILLS = b.comment("Epic Fight skill diamonds above the player block (needs Epic Fight).").define("show_skills", true);
-        SKILLS_Y = b.comment("Skill row distance above the crest top (GUI pixels).").defineInRange("skills_gap", 14, 0, 300);
+        SHOW_SKILLS = b.comment("Epic Fight special move + skill diamonds above the player block (needs Epic Fight).").define("show_skills", true);
+        SKILLS_Y = b.comment("Skill row distance above the crest top (GUI pixels).").defineInRange("skills_gap", 10, 0, 300);
         b.pop();
         b.push("equipment");
         SHOW_EQUIPMENT = b.comment("Four diamond slots at the bottom-right: weapon, offhand, consumable, spell.").define("show_equipment", true);
-        EQUIP_X = b.comment("Slot cluster centre, distance from the right edge.").defineInRange("equipment_x", 48, 0, 400);
-        EQUIP_Y = b.comment("Slot cluster centre, distance from the bottom edge.").defineInRange("equipment_y", 52, 0, 400);
+        EQUIP_X = b.comment("Slot cluster centre, distance right of the hotbar's right edge (GUI pixels).").defineInRange("equipment_offset_x", 56, 0, 400);
+        EQUIP_Y = b.comment("Slot cluster centre, distance from the bottom edge (GUI pixels).").defineInRange("equipment_y", 34, 0, 400);
         b.pop();
         b.push("boss");
         SHOW_BOSS = b.comment("Custom boss bars (replaces the vanilla ones).").define("show_boss_bars", true);
@@ -49,6 +50,14 @@ public final class HudConfig {
         COMPASS_DEATHS = b.comment("Include death markers.").define("compass_show_deaths", true);
         COMPASS_RANGE = b.comment("Markers farther than this (blocks) are hidden. 0 = no limit.").defineInRange("compass_marker_range", 0, 0, 1000000);
         COMPASS_VERTICAL = b.comment("Markers with a known height more than this many blocks above/below you are hidden (underground markers). 0 = off.").defineInRange("compass_marker_vertical_limit", 0, 0, 1000);
+        b.pop();
+        b.push("layout");
+        HIDE_OVERLAYS = b.comment("Other mods' HUD overlays to hide while PhantomX HUD is on. 'modid:*' hides every overlay of a mod, a trailing * matches a prefix.")
+                .defineList("hide_overlays", java.util.List.of("epicfight:*", "irons_spellbooks:mana*"), o -> o instanceof String);
+        MOVE_CHAT = b.comment("Move the chat out of the way of the player block and the equipment slots.").define("move_chat", true);
+        CHAT_SHIFT_X = b.comment("How far the chat moves right (GUI pixels).").defineInRange("chat_shift_x", 205, 0, 800);
+        CHAT_SHIFT_Y = b.comment("How far the chat moves up (GUI pixels).").defineInRange("chat_shift_y", 24, 0, 400);
+        ITEM_NAME_RAISE = b.comment("How far the held-item name moves up so it clears the XP bar (GUI pixels).").defineInRange("item_name_raise", 16, 0, 100);
         b.pop();
         SPEC = b.build();
     }

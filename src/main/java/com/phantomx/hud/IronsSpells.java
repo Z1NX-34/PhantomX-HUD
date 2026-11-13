@@ -45,6 +45,11 @@ final class IronsSpells {
         }
     }
 
+    /** True when Iron's Spells is installed and readable. */
+    static boolean loaded() {
+        return ready();
+    }
+
     /** Icon of the selected spell or null. */
     static ResourceLocation icon() {
         if (!ready()) return null;
