@@ -167,11 +167,7 @@ final class PlayerBlock {
         String hpText = Math.round(p.getHealth()) + "/" + Math.round(p.getMaxHealth());
         float healthY = CY - R * 0.62f + 0.5f;
         bar(g, font, true, healthY, 11f, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
-        if (p.getAbsorptionAmount() > 0f) {
-            float ab = clamp01(p.getAbsorptionAmount() / Math.max(1f, p.getMaxHealth()));
-            bar(g, font, true, healthY - 6.6f, 5.6f, HEALTH_LEN * 0.62f, ab, GOLD, argb(150, 110, 44, 255), -1f,
-                    String.valueOf(Math.round(p.getAbsorptionAmount())));
-        }
+        if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), healthY);
 
         float staminaY = CY + R * 0.20f;
         float[] st = ResourceSources.stamina();
@@ -181,6 +177,39 @@ final class PlayerBlock {
         float[] mn = ResourceSources.mana();
         if (mn != null) bar(g, font, false, manaY, 8f, MANA_LEN, clamp01(mn[0] / mn[1]), BLUE, argb(52, 70, 104, 255), -1f,
                 Math.round(mn[0]) + "/" + Math.round(mn[1]));
+    }
+
+    /**
+     * Absorption: no frame and no empty slots. A row of small gold slanted pips sits on the upper slope above the health
+     * bar and simply grows with the absorption amount (2 HP per pip, more per pip when it gets large); the last pip
+     * fills partially. The number sits at the end of the row.
+     */
+    private static void absorption(GuiGraphics g, Font font, float ab, float healthY) {
+        Matrix4f m = g.pose().last().pose();
+        float h = 3.8f, y0 = healthY - h - 2.6f, y1 = y0 + h;
+        float unit = 2f * (float) Math.ceil(ab / 40f);
+        int pips = Math.max(1, (int) Math.ceil(ab / unit));
+        float pw = 5.2f, gap = 1.3f, step = pw + gap;
+        float xa0 = left(true, y0);
+        int top = argb(255, 226, 132, 255), bot = argb(196, 142, 54, 255);
+        float lastX = xa0;
+        for (int i = 0; i < pips; i++) {
+            float f = i == pips - 1 ? clamp01((ab - i * unit) / unit) : 1f;
+            if (f <= 0.01f) continue;
+            float xa = xa0 + i * step, w = pw * f;
+            poly(m, withAlpha(INK, 215),
+                    xa - 0.7f, y0 - 0.7f, xa + w + 0.7f, y0 - 0.7f, xa + w + h + 0.7f, y1 + 0.7f, xa + h - 0.7f, y1 + 0.7f);
+            polyColors(m, 0f, new float[] {xa, y0, xa + w, y0, xa + w + h, y1, xa + h, y1}, new int[] {top, top, bot, bot});
+            line(m, withAlpha(WHITE, 120), xa + 0.2f, y0 + 0.35f, xa + w, y0 + 0.35f, 0.5f);
+            lastX = xa + w + h * 0.5f;
+        }
+        String t = String.valueOf(Math.round(ab));
+        float ts = 0.66f;
+        g.pose().pushPose();
+        g.pose().translate(lastX + 3.2f, y0 + (h - 7f * ts) / 2f, 0f);
+        g.pose().scale(ts, ts, 1f);
+        g.drawString(font, t, 0, 0, argb(255, 226, 140, 255), true);
+        g.pose().popPose();
     }
 
     /** Left boundary of a bar at height y: follows the crest edge plus a gap. */
@@ -295,36 +324,55 @@ final class PlayerBlock {
 
     // ------------------------------------------------------------------------------------------ xp
 
-    private static final int XP_GREEN = argb(96, 188, 104, 255), XP_DARK = argb(44, 112, 62, 255), XP_LIGHT = argb(190, 244, 170, 255);
+    private static final int XP_TOP = argb(120, 238, 152, 255), XP_BOT = argb(32, 130, 84, 255), XP_MINT = argb(190, 255, 214, 255);
 
+    /**
+     * Modern XP bar: ten slanted segments (five each side of the level diamond) that light up one after another with a
+     * green gradient, a bright leading edge on the segment being filled and a soft sheen that travels along the lit part.
+     */
     private static void drawXp(GuiGraphics g, Font font, Player p, int sw, int sh, float scale) {
         g.pose().pushPose();
         g.pose().translate(sw / 2f, sh - 22f - 13f, 0);
         g.pose().scale(scale, scale, 1f);
         Matrix4f m = g.pose().last().pose();
-        float w = 110f, h = 4.4f, sl = 2.5f, x0 = -w / 2f;
-        poly(m, withAlpha(GOLD, 180), x0 - 0.8f, -0.8f, x0 + w + 0.8f, -0.8f, x0 + w - sl + 0.3f, h + 0.8f, x0 - 0.8f, h + 0.8f);
-        poly(m, withAlpha(INK, 245), x0 + sl, 0, x0 + w, 0, x0 + w - sl, h, x0, h);
-        float fill = (w - 1.6f) * clamp01(p.experienceProgress);
-        if (fill > 0.5f) {
-            float fx0 = x0 + 0.8f, fx1 = fx0 + fill;
-            // base: bright upper half, darker lower half
-            poly(m, XP_DARK, fx0 + sl, 0.8f, fx1, 0.8f, fx1 - sl, h - 0.8f, fx0, h - 0.8f);
-            poly(m, XP_GREEN, fx0 + sl, 0.8f, fx1, 0.8f, fx1 - sl * 0.5f, h * 0.5f, fx0 + sl * 0.5f, h * 0.5f);
-            // diagonal stripe pattern, only where a full stripe fits
-            for (float sx = fx0 + 4f; sx < fx1 - 3.2f; sx += 4.2f) {
-                poly(m, withAlpha(XP_LIGHT, 120), sx + 1.6f, 0.8f, sx + 2.8f, 0.8f, sx + 1.2f, h - 0.8f, sx + 0f, h - 0.8f);
-            }
-            line(m, withAlpha(XP_LIGHT, 200), fx0 + sl, 0.9f, fx1, 0.9f, 0.5f);
-        }
+        final int segs = 10;
+        float segW = 8.6f, gap = 1.5f, sl = 2.4f, h = 3.6f, step = segW + gap, len = segW - sl;
+
         String lvl = String.valueOf(p.experienceLevel);
         float tw = font.width(lvl);
-        float hw = Math.max(9f, tw / 2f + 6f), hh = Math.max(8f, hw * 0.9f);
-        diamondFill(m, INK, 0, h / 2f, hw, hh);
-        diamondFill(m, withAlpha(argb(40, 90, 56, 255), 160), 0, h / 2f, hw - 2.4f, hh - 2.2f);
-        diamondLine(m, GOLD, 0, h / 2f, hw, hh, 0.9f);
-        diamondLine(m, withAlpha(XP_GREEN, 170), 0, h / 2f, hw - 3f, hh - 2.8f, 0.45f);
-        g.drawString(font, lvl, Math.round(-tw / 2f), Math.round(h / 2f - 3.5f), BONE, true);
+        float hw = Math.max(10f, tw / 2f + 6.5f), hh = hw * 0.92f;
+        float inner = hw + 3.2f;
+
+        float progress = clamp01(p.experienceProgress) * segs;
+        float wave = (System.currentTimeMillis() % 2800L) / 2800f * (segs + 4) - 2f;
+        for (int i = 0; i < segs; i++) {
+            float xL = i < segs / 2 ? -inner - (segs / 2 - i) * step + gap : inner + (i - segs / 2) * step;
+            // faint gold edge + dark backing
+            poly(m, withAlpha(GOLD, 95), skewBand(xL - 0.6f, sl, h, -0.6f, h + 0.6f, 0f, len + 1.2f));
+            poly(m, withAlpha(INK, 238), skewBand(xL, sl, h, 0f, h, 0f, len));
+            float f = clamp01(progress - i);
+            if (f <= 0.001f) continue;
+            float u1 = len * f;
+            polyColors(m, 0f, skewBand(xL, sl, h, 0f, h, 0f, u1), new int[] {XP_TOP, XP_TOP, XP_BOT, XP_BOT});
+            float k = Math.max(0f, 1f - Math.abs(i - wave) / 1.6f);
+            if (k > 0f) poly(m, withAlpha(WHITE, Math.round(70 * k)), skewBand(xL, sl, h, 0f, h, 0f, u1));
+            poly(m, withAlpha(WHITE, 130), skewBand(xL, sl, h, 0f, h * 0.28f, 0f, u1));
+            if (f < 0.999f) {
+                float xt = xL + u1 + sl, xb = xL + u1;
+                line(m, withAlpha(XP_MINT, 70), xt, -0.5f, xb, h + 0.5f, 3.2f);
+                line(m, withAlpha(WHITE, 235), xt, -0.2f, xb, h + 0.2f, 1.0f);
+            }
+        }
+
+        // level diamond
+        float cy = h / 2f;
+        diamondFill(m, INK, 0, cy, hw + 1f, hh + 1f);
+        diamondFill(m, withAlpha(argb(26, 70, 52, 255), 235), 0, cy, hw - 2.2f, hh - 2.0f);
+        diamondLine(m, GOLD, 0, cy, hw, hh, 0.9f);
+        diamondLine(m, withAlpha(XP_TOP, 150), 0, cy, hw - 3f, hh - 2.8f, 0.45f);
+        diamondFill(m, GOLD, 0, cy - hh - 1.4f, 1.5f, 1.5f);
+        diamondFill(m, GOLD, 0, cy + hh + 1.4f, 1.5f, 1.5f);
+        g.drawString(font, lvl, Math.round(-tw / 2f), Math.round(cy - 3.5f), BONE, true);
         g.pose().popPose();
     }
 

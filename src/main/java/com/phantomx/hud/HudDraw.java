@@ -5,8 +5,11 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 
 /** Small shape painter for GUI space. Colours are ARGB ints. Face culling is switched off so winding never matters. */
 final class HudDraw {
@@ -113,5 +116,45 @@ final class HudDraw {
         float vy = upper ? cy - hh : cy + hh;
         line(m, color, cx - hw, cy, cx, vy, w);
         line(m, color, cx, vy, cx + hw, cy, w);
+    }
+
+    /**
+     * Skewed band of a slanted bar: x runs from x0+u0 to x0+u1 (u in 0..len), every point is shifted right by
+     * sl*(1 - y/h), so the left and right ends lean the same way. Returns xy for poly().
+     */
+    static float[] skewBand(float x0, float sl, float h, float ya, float yb, float u0, float u1) {
+        float sa = sl * (1f - ya / h), sb = sl * (1f - yb / h);
+        return new float[] {x0 + u0 + sa, ya, x0 + u1 + sa, ya, x0 + u1 + sb, yb, x0 + u0 + sb, yb};
+    }
+
+    /**
+     * Starts clipping to a diamond of half-diagonal hm around (cx, cy) in the current pose: until endDiamondClip,
+     * everything drawn inside this call pair only shows within the diamond. Done with a depth mask (no stencil needed).
+     */
+    static void beginDiamondClip(GuiGraphics g, float cx, float cy, float hm, float ext) {
+        Matrix4f m = g.pose().last().pose();
+        g.flush();
+        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(true);
+        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        RenderSystem.colorMask(false, false, false, false);
+        try {
+            for (int sx = -1; sx <= 1; sx += 2) {
+                for (int sy = -1; sy <= 1; sy += 2) {
+                    polyZ(m, WHITE, 300f,
+                            cx + sx * hm, cy, cx + sx * ext, cy, cx + sx * ext, cy + sy * ext, cx, cy + sy * ext, cx, cy + sy * hm);
+                }
+            }
+        } finally {
+            RenderSystem.colorMask(true, true, true, true);
+            RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        }
+    }
+
+    static void endDiamondClip(GuiGraphics g) {
+        g.flush();
+        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
     }
 }

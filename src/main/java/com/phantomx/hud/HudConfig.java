@@ -6,11 +6,11 @@ public final class HudConfig {
     public static final ForgeConfigSpec SPEC;
     public static final ForgeConfigSpec.BooleanValue ENABLED, HIDE_OTHER_HUDS;
     public static final ForgeConfigSpec.BooleanValue SHOW_CHIPS, SHOW_XP, SHOW_EFFECTS, SHOW_SKILLS, SHOW_EQUIPMENT, SHOW_BOSS, SHOW_COMPASS;
-    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS, COMPASS_DEATHS, MOVE_CHAT;
+    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS, COMPASS_DEATHS, MOVE_CHAT, AUTO_HIDE_BOSS, BUILTIN_HIDE;
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDE_OVERLAYS;
     public static final ForgeConfigSpec.IntValue CHAT_SHIFT_X, CHAT_SHIFT_Y, ITEM_NAME_RAISE;
     public static final ForgeConfigSpec.DoubleValue SCALE;
-    public static final ForgeConfigSpec.IntValue MARGIN_X, MARGIN_Y, SKILLS_Y, EQUIP_X, EQUIP_Y, EFFECTS_Y, BOSS_MAX;
+    public static final ForgeConfigSpec.IntValue MARGIN_X, MARGIN_Y, SKILLS_Y, EQUIP_X, EQUIP_Y, EFFECTS_TOP, BOSS_MAX;
     public static final ForgeConfigSpec.IntValue COMPASS_WIDTH, COMPASS_RANGE, COMPASS_VERTICAL;
 
     static {
@@ -30,7 +30,7 @@ public final class HudConfig {
         b.pop();
         b.push("effects");
         SHOW_EFFECTS = b.comment("Potion effect tiles on the right edge.").define("show_effects", true);
-        EFFECTS_Y = b.comment("Effect tiles: distance of the lowest row from the bottom edge (GUI pixels).").defineInRange("effects_y", 46, 0, 600);
+        EFFECTS_TOP = b.comment("Effect tiles: distance of the first row from the TOP edge (GUI pixels). Rows stack downward, extra columns grow left.").defineInRange("effects_top", 44, 0, 600);
         b.pop();
         b.push("skills");
         SHOW_SKILLS = b.comment("Epic Fight special move + skill diamonds above the player block (needs Epic Fight).").define("show_skills", true);
@@ -43,6 +43,7 @@ public final class HudConfig {
         b.pop();
         b.push("boss");
         SHOW_BOSS = b.comment("Replace every vanilla-style boss bar (including other mods' custom bosses that use boss events) with the PhantomX one.").define("show_boss_bars", true);
+        AUTO_HIDE_BOSS = b.comment("Also hide other mods' own boss bar overlays (any overlay whose id contains 'boss'). Intro / title overlays are left alone.").define("hide_other_boss_overlays", true);
         BOSS_MAX = b.comment("Maximum number of boss bars shown at once.").defineInRange("max_boss_bars", 3, 1, 8);
         b.pop();
         b.push("compass");
@@ -56,6 +57,7 @@ public final class HudConfig {
         b.push("layout");
         HIDE_OVERLAYS = b.comment("Other mods' HUD overlays to hide while PhantomX HUD is on. 'modid:*' hides every overlay of a mod, a trailing * matches a prefix.")
                 .defineList("hide_overlays", java.util.List.of("epicfight:*", "irons_spellbooks:mana*", "irons_spellbooks:spell*"), o -> o instanceof String);
+        BUILTIN_HIDE = b.comment("Always hide Epic Fight's HUD and Iron's Spells' mana bar / spell slots, even if the list above is an old one. The list is only additional.").define("hide_builtin_mod_overlays", true);
         MOVE_CHAT = b.comment("Move the chat out of the way of the player block and the equipment slots.").define("move_chat", false);
         CHAT_SHIFT_X = b.comment("How far the chat moves right (GUI pixels).").defineInRange("chat_shift_x", 205, 0, 800);
         CHAT_SHIFT_Y = b.comment("How far the chat moves up (GUI pixels).").defineInRange("chat_shift_y", 24, 0, 400);

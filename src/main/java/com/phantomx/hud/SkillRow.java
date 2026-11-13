@@ -8,13 +8,13 @@ import net.minecraft.world.entity.player.Player;
 import org.joml.Matrix4f;
 
 /**
- * Epic Fight skills above the player block at the left edge: the special move icon large and fixed in place (Epic
- * Fight's own icon), then the other skills as small diamonds.
+ * Epic Fight skills above the player block at the left edge. Every skill is the same diamond (the special move a
+ * little larger); Epic Fight draws the icon itself, cropped to the diamond so nothing bleeds outside it.
  */
 final class SkillRow {
     private SkillRow() {}
 
-    private static final float BIG = 38f, SMALL_HS = 11f;
+    private static final float BIG_HS = 13.5f, SMALL_HS = 11f, GAP = 1.5f;
 
     /** Draws the row and returns the screen y of its top edge (or the crest top when there is nothing to draw). */
     static float render(GuiGraphics g, Player p, int sh, float scale, float partial) {
@@ -22,7 +22,7 @@ final class SkillRow {
         List<Object> skills = EpicFightSkills.visible();
         if (skills.isEmpty()) return crestTop;
         float left = HudConfig.MARGIN_X.get() + scale * (PlayerBlock.CX - PlayerBlock.R);
-        float cy = crestTop - HudConfig.SKILLS_Y.get() * scale - BIG / 2f * scale;
+        float cy = crestTop - HudConfig.SKILLS_Y.get() * scale - BIG_HS * scale;
 
         g.pose().pushPose();
         g.pose().translate(left, cy, 0);
@@ -30,36 +30,28 @@ final class SkillRow {
         float x = 0f;
         for (int i = 0; i < skills.size(); i++) {
             Object c = skills.get(i);
+            boolean innate = EpicFightSkills.isInnate(c);
+            float hs = innate ? BIG_HS : SMALL_HS;
+            float bx = x + hs;
             Matrix4f m = g.pose().last().pose();
-            if (EpicFightSkills.isInnate(c)) {
-                float bx = x + BIG / 2f;
-                bracket(m, bx, 0f);
-                EpicFightSkills.draw(g, c, bx, 0f, BIG, partial);
-                x += BIG + 5f;
-            } else {
-                float bx = x + SMALL_HS;
-                diamondFill(m, withAlpha(INK, 230), bx, 0, SMALL_HS, SMALL_HS);
-                diamondLine(m, GOLD, bx, 0, SMALL_HS, SMALL_HS, 1.1f);
-                diamondLine(m, withAlpha(PURP, 190), bx, 0, SMALL_HS - 2.8f, SMALL_HS - 2.8f, 0.5f);
-                EpicFightSkills.draw(g, c, bx, 0f, 14f, partial);
-                x += SMALL_HS * 2f + 1.5f;
+            diamondFill(m, withAlpha(INK, 238), bx, 0f, hs, hs);
+            diamondFill(m, withAlpha(argb(36, 30, 62, 255), 200), bx, 0f, hs - 2.2f, hs - 2.2f);
+
+            float hm = hs - 1.3f;
+            beginDiamondClip(g, bx, 0f, hm, hs + 18f);
+            EpicFightSkills.draw(g, c, bx, 0f, hm * 1.5f, partial);
+            endDiamondClip(g);
+
+            m = g.pose().last().pose();
+            diamondLine(m, GOLD, bx, 0f, hs, hs, 1.1f);
+            diamondLine(m, withAlpha(PURP, 190), bx, 0f, hs - 2.6f, hs - 2.6f, 0.5f);
+            if (innate) {
+                diamondFill(m, GOLD, bx - hs - 1.2f, 0f, 1.7f, 1.7f);
+                diamondFill(m, GOLD, bx + hs + 1.2f, 0f, 1.7f, 1.7f);
             }
+            x += hs * 2f + GAP;
         }
         g.pose().popPose();
-        return cy - (BIG / 2f + 2f) * scale;
-    }
-
-    /** Thin gold corner marks around the special move icon. */
-    private static void bracket(Matrix4f m, float cx, float cy) {
-        float h = BIG / 2f + 2f, l = 5f;
-        int c = withAlpha(GOLD, 230);
-        line(m, c, cx - h, cy - h, cx - h + l, cy - h, 0.9f);
-        line(m, c, cx - h, cy - h, cx - h, cy - h + l, 0.9f);
-        line(m, c, cx + h, cy - h, cx + h - l, cy - h, 0.9f);
-        line(m, c, cx + h, cy - h, cx + h, cy - h + l, 0.9f);
-        line(m, c, cx - h, cy + h, cx - h + l, cy + h, 0.9f);
-        line(m, c, cx - h, cy + h, cx - h, cy + h - l, 0.9f);
-        line(m, c, cx + h, cy + h, cx + h - l, cy + h, 0.9f);
-        line(m, c, cx + h, cy + h, cx + h, cy + h - l, 0.9f);
+        return cy - (BIG_HS + 2f) * scale;
     }
 }

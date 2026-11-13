@@ -86,15 +86,25 @@ final class BossBars {
     }
 
     private static String num(float v) {
+        if (v > 0f && v < 1f) return "1";
         return String.format(Locale.ROOT, "%,d", Math.round(v));
     }
 
+    /** Thin, minimal boss bar: name left, HP right, a slim slanted bar, and an even slimmer posture bar underneath. */
     private static void draw(GuiGraphics g, Minecraft mc, LerpingBossEvent ev, int index, int sw, int sh, float scale, float dt) {
         Font font = mc.font;
         PostureLink.Info info = PostureLink.lookup(mc, ev);
         LivingEntity ent = info.entity;
 
+        // The bar's own progress is the truth, unless a boss whose name matches an entity says otherwise (some mods
+        // keep the event progress at a fixed value and track the real health on the entity).
         float pct = PlayerBlock.clamp01(ev.getProgress());
+        String hp = Math.round(pct * 100f) + "%";
+        if (ent != null && ent.getMaxHealth() > 0f) {
+            float ef = PlayerBlock.clamp01(ent.getHealth() / ent.getMaxHealth());
+            if (info.byName && Math.abs(ef - pct) > 0.04f) pct = ef;
+            hp = num(ent.getHealth()) + " / " + num(ent.getMaxHealth());
+        }
         float trail = TRAIL.getOrDefault(ev.getId(), pct);
         if (pct >= trail) trail = pct; else trail = Math.max(pct, trail - dt * 0.30f);
         TRAIL.put(ev.getId(), trail);
@@ -102,100 +112,88 @@ final class BossBars {
         String name = ev.getName().getString();
         Matcher mt = PHASE.matcher(name);
         String phase = mt.find() ? "PHASE " + mt.group(1).toUpperCase(Locale.ROOT) : null;
-        String hp = ent != null && ent.getMaxHealth() > 0f
-                ? num(ent.getHealth()) + " / " + num(ent.getMaxHealth())
-                : Math.round(pct * 100f) + "%";
 
-        float w = Math.min(340f, sw / scale * 0.5f), h = 11f, sl = 6f;
-        float cx = sw / 2f, y = sh - 98f * scale - index * 50f * scale;
+        float w = Math.min(270f, sw / scale * 0.42f), h = 5.2f, sl = 3.4f;
+        float nameScale = 0.92f, hpScale = 0.78f;
+        float room = w - sl - font.width(hp) * hpScale - 16f - (phase == null ? 0f : 40f);
+        String shown = name;
+        while (shown.length() > 3 && font.width(shown) * nameScale > room) shown = shown.substring(0, shown.length() - 1);
+        if (!shown.equals(name)) shown = shown.stripTrailing() + "...";
+
+        float cx = sw / 2f, y = sh - 92f * scale - index * 34f * scale;
         g.pose().pushPose();
         g.pose().translate(cx, y, 0);
         g.pose().scale(scale, scale, 1f);
         Matrix4f m = g.pose().last().pose();
-        float x0 = -w / 2f, x1 = w / 2f;
+        float x0 = -w / 2f, x1 = w / 2f, len = w - sl;
 
-        int fill, dark;
+        int top, bot;
         switch (ev.getColor()) {
-            case PURPLE -> { fill = argb(150, 110, 214, 255); dark = argb(70, 50, 120, 255); }
-            case WHITE -> { fill = BONE; dark = argb(150, 144, 130, 255); }
-            case BLUE -> { fill = BLUE; dark = argb(52, 70, 104, 255); }
-            default -> { fill = RED; dark = DRED; }
+            case PINK -> { top = argb(238, 138, 176, 255); bot = argb(150, 56, 98, 255); }
+            case BLUE -> { top = argb(126, 176, 232, 255); bot = argb(52, 92, 156, 255); }
+            case GREEN -> { top = argb(132, 206, 124, 255); bot = argb(52, 122, 64, 255); }
+            case YELLOW -> { top = argb(244, 210, 104, 255); bot = argb(172, 128, 40, 255); }
+            case PURPLE -> { top = argb(176, 126, 236, 255); bot = argb(92, 58, 164, 255); }
+            case WHITE -> { top = argb(242, 238, 228, 255); bot = argb(160, 152, 138, 255); }
+            default -> { top = argb(222, 64, 62, 255); bot = argb(128, 22, 28, 255); }
         }
 
-        // name row: red slashes and gold diamonds either side
-        int nameW = font.width(name);
-        float ny = -19f, half = nameW / 2f + 14f;
-        int slash = withAlpha(RED, 235);
-        line(m, slash, -half - 26f, ny + 9f, -half - 14f, ny + 1f, 1.6f);
-        line(m, slash, -half - 20f, ny + 9f, -half - 8f, ny + 1f, 1.6f);
-        line(m, slash, half + 14f, ny + 9f, half + 26f, ny + 1f, 1.6f);
-        line(m, slash, half + 8f, ny + 9f, half + 20f, ny + 1f, 1.6f);
-        diamondFill(m, GOLD, -half - 2f, ny + 4.5f, 2.6f, 2.6f);
-        diamondFill(m, GOLD, half + 2f, ny + 4.5f, 2.6f, 2.6f);
-        g.drawString(font, name, Math.round(-nameW / 2f), Math.round(ny + 1f), BONE, true);
-        if (phase != null) {
-            g.pose().pushPose();
-            g.pose().translate(x1 - sl, -8.4f, 0);
-            g.pose().scale(0.65f, 0.65f, 1f);
-            g.drawString(font, phase, -font.width(phase), 0, GOLD, true);
-            g.pose().popPose();
-        }
-
-        // main bar (parallelogram)
-        poly(m, withAlpha(GOLD, 215), x0 + sl - 0.9f, -0.9f, x1 + 0.9f, -0.9f, x1 - sl + 0.1f, h + 0.9f, x0 - 0.9f - 0.1f, h + 0.9f);
-        poly(m, withAlpha(INK, 248), x0 + sl, 0, x1, 0, x1 - sl, h, x0, h);
-        float ins = 1.2f, len = w - 2f * ins;
-        if (trail > pct) {
-            float xt = x0 + ins + len * trail;
-            poly(m, withAlpha(BONE, 235), x0 + ins + sl * 0.9f, ins, xt, ins, xt - sl * 0.9f, h - ins, x0 + ins, h - ins);
-        }
-        if (pct > 0.002f) {
-            float xf = x0 + ins + len * pct, ym = h * 0.5f;
-            poly(m, fill, x0 + ins + sl * 0.9f, ins, xf, ins, xf - sl * 0.9f, h - ins, x0 + ins, h - ins);
-            poly(m, withAlpha(dark, 210), x0 + ins + sl * 0.45f, ym, xf - sl * 0.45f, ym, xf - sl * 0.9f, h - ins, x0 + ins, h - ins);
-        }
-        float tx = x0 + ins + len * 0.5f + sl * 0.45f;
-        line(m, withAlpha(GOLD, 235), tx + 1.5f, -1.5f, tx - 1.5f, h + 1.5f, 0.9f);
-        // HP numbers
+        // name (left) and phase tag, HP (right)
         g.pose().pushPose();
-        float ts = 0.78f;
-        g.pose().translate(0f + sl * 0.0f, (h - 7f * ts) / 2f, 0f);
-        g.pose().scale(ts, ts, 1f);
-        g.drawString(font, hp, Math.round(-font.width(hp) / 2f), 0, WHITE, true);
+        g.pose().translate(x0 + sl + 0.5f, -11.2f, 0f);
+        g.pose().scale(nameScale, nameScale, 1f);
+        g.drawString(font, shown, 0, 0, BONE, true);
+        if (phase != null) {
+            g.pose().translate(font.width(shown) + 6f, 1.2f, 0f);
+            g.pose().scale(0.72f, 0.72f, 1f);
+            g.drawString(font, phase, 0, 0, GOLD, true);
+        }
         g.pose().popPose();
+        g.pose().pushPose();
+        g.pose().translate(x1 - 0.5f, -10.3f, 0f);
+        g.pose().scale(hpScale, hpScale, 1f);
+        g.drawString(font, hp, -font.width(hp), 0, withAlpha(BONE, 225), true);
+        g.pose().popPose();
+
+        // main bar
+        poly(m, withAlpha(GOLD, 150), skewBand(x0 - 0.7f, sl, h, -0.7f, h + 0.7f, 0f, len + 1.4f));
+        poly(m, withAlpha(INK, 228), skewBand(x0, sl, h, 0f, h, 0f, len));
+        if (trail > pct) poly(m, withAlpha(BONE, 215), skewBand(x0, sl, h, 0f, h, 0f, len * trail));
+        if (pct > 0.002f) {
+            float u = len * pct;
+            polyColors(m, 0f, skewBand(x0, sl, h, 0f, h, 0f, u), new int[] {top, top, bot, bot});
+            poly(m, withAlpha(WHITE, 90), skewBand(x0, sl, h, 0f, h * 0.3f, 0f, u));
+        }
+        for (int q = 1; q <= 3; q++) {
+            float u = len * q / 4f;
+            float[] t = skewBand(x0, sl, h, 0f, h, u, u);
+            line(m, withAlpha(INK, 120), t[0], 0f, t[6], h, 0.6f);
+        }
+        diamondFill(m, GOLD, x0 - 3.2f, h / 2f, 1.7f, 1.7f);
+        diamondFill(m, GOLD, x1 - sl / 2f + 3.2f, h / 2f, 1.7f, 1.7f);
 
         // posture bar
         if (info.posture >= 0f) {
             float pv = POSTURE.getOrDefault(ev.getId(), info.posture);
             pv += (info.posture - pv) * Math.min(1f, dt * 10f);
             POSTURE.put(ev.getId(), pv);
-            float ph = 4.2f, py = h + 3f, pw = w * 0.74f, px0 = -pw / 2f, px1 = pw / 2f, ps = 3f;
+            float ph = 2.4f, py = h + 3.4f, psl = 1.6f, pw = w * 0.6f, plen = pw - psl, px0 = -pw / 2f;
             boolean pulse = info.broken && ((System.currentTimeMillis() / 140) % 2 == 0);
-            int pcol = info.broken ? (pulse ? WHITE : RED) : pv > 0.82f ? argb(255, 128, 52, 255) : argb(218, 178, 96, 255);
-            poly(m, withAlpha(info.broken ? RED : GOLD, 190), px0 + ps - 0.7f, py - 0.7f, px1 + 0.7f, py - 0.7f, px1 - ps + 0.1f, py + ph + 0.7f, px0 - 0.8f, py + ph + 0.7f);
-            poly(m, withAlpha(INK, 245), px0 + ps, py, px1, py, px1 - ps, py + ph, px0, py + ph);
-            float pin = 0.8f, plen = pw - 2f * pin;
-            if (pv > 0.01f) {
-                float pxf = px0 + pin + plen * pv;
-                poly(m, pcol, px0 + pin + ps * 0.8f, py + pin, pxf, py + pin, pxf - ps * 0.8f, py + ph - pin, px0 + pin, py + ph - pin);
-                poly(m, withAlpha(argb(255, 240, 200, 255), 110), px0 + pin + ps * 0.8f, py + pin, pxf, py + pin, pxf - ps * 0.2f, py + ph * 0.5f, px0 + pin + ps * 0.3f, py + ph * 0.5f);
-            }
-            // label
+            int ptop = info.broken ? (pulse ? WHITE : RED) : pv > 0.82f ? argb(255, 140, 56, 255) : argb(226, 182, 88, 255);
+            int pbot = info.broken ? (pulse ? WHITE : DRED) : pv > 0.82f ? argb(190, 70, 24, 255) : argb(160, 104, 36, 255);
             g.pose().pushPose();
-            g.pose().translate(px0 - 3f, py - 0.4f, 0f);
-            g.pose().scale(0.55f, 0.55f, 1f);
+            g.pose().translate(0f, py, 0f);
+            Matrix4f pm = g.pose().last().pose();
+            poly(pm, withAlpha(info.broken ? RED : GOLD, 120), skewBand(px0 - 0.5f, psl, ph, -0.5f, ph + 0.5f, 0f, plen + 1f));
+            poly(pm, withAlpha(INK, 222), skewBand(px0, psl, ph, 0f, ph, 0f, plen));
+            if (pv > 0.01f) polyColors(pm, 0f, skewBand(px0, psl, ph, 0f, ph, 0f, plen * pv), new int[] {ptop, ptop, pbot, pbot});
+            g.pose().popPose();
+            g.pose().pushPose();
+            g.pose().translate(px0 - 3f, py - 1.2f, 0f);
+            g.pose().scale(0.5f, 0.5f, 1f);
             String lab = info.broken ? "BROKEN" : "POSTURE";
-            g.drawString(font, lab, -font.width(lab), 0, info.broken ? RED : withAlpha(BONE, 190), true);
+            g.drawString(font, lab, -font.width(lab), 0, info.broken ? RED : withAlpha(BONE, 170), true);
             g.pose().popPose();
-            g.pose().pushPose();
-            g.pose().translate(px1 + 3f, py - 0.4f, 0f);
-            g.pose().scale(0.55f, 0.55f, 1f);
-            g.drawString(font, Math.round(pv * 100f) + "%", 0, 0, withAlpha(BONE, 190), true);
-            g.pose().popPose();
-        } else {
-            diamondFill(m, INK, 0, h + 8f, 4.6f, 4.6f);
-            diamondLine(m, GOLD, 0, h + 8f, 4.6f, 4.6f, 0.8f);
-            diamondFill(m, RED, 0, h + 8f, 1.7f, 1.7f);
         }
         g.pose().popPose();
     }

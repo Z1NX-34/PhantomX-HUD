@@ -14,8 +14,11 @@ import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.FMLPaths;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import java.nio.file.Files;
+import java.util.Locale;
 
 /** Overlay registration, vanilla / other-mod HUD hiding and the boss bar hook. */
 public final class HudEvents {
@@ -61,8 +64,7 @@ public final class HudEvents {
                     || id.equals(VanillaGuiOverlay.FOOD_LEVEL.id())
                     || (HudConfig.SHOW_XP.get() && id.equals(VanillaGuiOverlay.EXPERIENCE_BAR.id()))
                     || (HudConfig.SHOW_EFFECTS.get() && id.equals(VanillaGuiOverlay.POTION_ICONS.id()))
-                    || (HudConfig.SHOW_COMPASS.get() && id.equals(ADV_COMPASS))
-                    || (HudConfig.SHOW_BOSS.get() && !BossBars.unavailable() && id.equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id()));
+                    || (HudConfig.SHOW_COMPASS.get() && id.equals(ADV_COMPASS));
             if (!hide && HudConfig.HIDE_OTHER_HUDS.get()) {
                 for (ResourceLocation r : SCH) {
                     if (r.equals(id)) {
@@ -72,7 +74,61 @@ public final class HudEvents {
                 }
             }
             if (!hide && matchesHideList(id)) hide = true;
+            if (!hide && HudConfig.BUILTIN_HIDE.get() && builtinHide(id)) hide = true;
+            if (!hide && HudConfig.SHOW_BOSS.get() && HudConfig.AUTO_HIDE_BOSS.get() && looksLikeBossOverlay(id)) hide = true;
             if (hide) e.setCanceled(true);
+        }
+
+        /** Epic Fight's HUD and Iron's Spells' mana bar / spell slots (its cast and imbue overlays stay). */
+        private static boolean builtinHide(ResourceLocation id) {
+            String ns = id.getNamespace(), path = id.getPath().toLowerCase(Locale.ROOT);
+            if (ns.equals("epicfight")) return true;
+            if (ns.equals("irons_spellbooks")) return !(path.contains("cast") || path.contains("active") || path.contains("imbued"));
+            return false;
+        }
+
+        private static boolean looksLikeBossOverlay(ResourceLocation id) {
+            String ns = id.getNamespace();
+            if (ns.equals("minecraft") || ns.equals(PhantomXHud.MODID)) return false;
+            String p = id.getPath().toLowerCase(Locale.ROOT);
+            if (!p.contains("boss")) return false;
+            for (String bad : new String[] {"intro", "title", "cinematic", "cutscene", "warning"}) {
+                if (p.contains(bad)) return false;
+            }
+            return true;
+        }
+
+        // The vanilla boss bars are NOT cancelled (that stops mods that hook the boss bar from working, e.g. boss
+        // intros). They are drawn 20000 px above the screen instead, so every hook still runs but nothing is visible.
+        private static boolean bossPushed;
+
+        private static boolean sinkBoss(RenderGuiOverlayEvent e) {
+            return HudConfig.ENABLED.get() && HudConfig.SHOW_BOSS.get() && !BossBars.unavailable()
+                    && e.getOverlay().id().equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id());
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void bossSinkPre(RenderGuiOverlayEvent.Pre e) {
+            if (!sinkBoss(e)) return;
+            e.getGuiGraphics().pose().pushPose();
+            e.getGuiGraphics().pose().translate(0f, -20000f, 0f);
+            bossPushed = true;
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+        public static void bossSinkCancelled(RenderGuiOverlayEvent.Pre e) {
+            if (bossPushed && e.isCanceled() && e.getOverlay().id().equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id())) {
+                e.getGuiGraphics().pose().popPose();
+                bossPushed = false;
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+        public static void bossSinkPost(RenderGuiOverlayEvent.Post e) {
+            if (bossPushed && e.getOverlay().id().equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id())) {
+                e.getGuiGraphics().pose().popPose();
+                bossPushed = false;
+            }
         }
 
         private static boolean matchesHideList(ResourceLocation id) {
@@ -142,6 +198,10 @@ public final class HudEvents {
             StringBuilder sb = new StringBuilder();
             for (NamedGuiOverlay o : GuiOverlayManager.getOverlays()) sb.append(o.id()).append(", ");
             LOG.info("Registered HUD overlays: {}", sb);
+            StringBuilder file = new StringBuilder("# Every HUD overlay id registered in this game (written by PhantomX HUD at startup).\n"
+                    + "# Add ids you want hidden to hide_overlays in phantomx_hud-client.toml ('modid:*' hides a whole mod).\n");
+            for (NamedGuiOverlay o : GuiOverlayManager.getOverlays()) file.append(o.id()).append('\n');
+            Files.writeString(FMLPaths.CONFIGDIR.get().resolve("phantomx_hud-overlays.txt"), file.toString());
         } catch (Throwable t) {
             LOG.warn("Could not list overlays: {}", t.toString());
         }

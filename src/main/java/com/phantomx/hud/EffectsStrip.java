@@ -15,7 +15,7 @@ import org.joml.Matrix4f;
 
 /**
  * Status effects on the right edge: small square tiles with a coloured top stripe and the time underneath. Rows stack
- * upward, extra columns grow to the left. Square and flat on purpose, so they never read as the diamond skill icons.
+ * downward from the top, extra columns grow to the left. Square and flat on purpose, so they never read as the diamond skill icons.
  */
 final class EffectsStrip {
     private EffectsStrip() {}
@@ -27,13 +27,13 @@ final class EffectsStrip {
         List<MobEffectInstance> list = new ArrayList<>(p.getActiveEffects());
         Minecraft mc = Minecraft.getInstance();
         g.pose().pushPose();
-        g.pose().translate(sw - 8f * scale, sh - HudConfig.EFFECTS_Y.get() * scale, 0);
+        g.pose().translate(sw - 8f * scale, HudConfig.EFFECTS_TOP.get() * scale, 0);
         g.pose().scale(scale, scale, 1f);
         int perCol = 6;
         for (int i = 0; i < list.size() && i < 24; i++) {
             MobEffectInstance e = list.get(i);
             float x = -TILE - (i / perCol) * (TILE + GAP + 1f);
-            float y = -((i % perCol) + 1) * (TILE + TEXT_H + GAP) + GAP;
+            float y = (i % perCol) * (TILE + TEXT_H + GAP);
             Matrix4f m = g.pose().last().pose();
             boolean good = e.getEffect().isBeneficial();
             int accent = good ? argb(120, 190, 150, 255) : RED;
