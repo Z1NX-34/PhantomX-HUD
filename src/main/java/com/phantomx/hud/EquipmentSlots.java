@@ -94,14 +94,15 @@ final class EquipmentSlots {
             gauge(g, -6f, -STEP - HS - 3.6f, 12f, 1.7f, 1f - sel.cooldown, sel.cooldown > 0f ? DGOLD : GOLD);
         }
 
-        // the rest of the list as a row of small diamonds above the spell slot
+        // the spell list (at most five) as small diamonds running diagonally up and to the right from the spell slot,
+        // so it never reaches over towards the boss bar
         if (list.size() > 1) {
-            float hs = 5.6f, gap = 1.6f, step = hs * 2f + gap;
-            float y = -STEP - HS - 11f;
-            float x0 = -(list.size() - 1) * step / 2f;
-            for (int i = 0; i < list.size(); i++) {
+            float hs = 5.6f, d = 0.7071f, step = hs * 1.41421f + 2.2f;
+            float t0 = HS * d + 3.2f + hs * d;
+            for (int i = 0; i < list.size() && i < 5; i++) {
                 IronsSpells.Entry e = list.get(i);
-                float x = x0 + i * step;
+                float t = t0 + i * step;
+                float x = t * d, y = -STEP - t * d;
                 Matrix4f m = g.pose().last().pose();
                 diamondFill(m, withAlpha(INK, 232), x, y, hs, hs);
                 diamondIcon(g, e.icon, x, y, hs - 1f, 8);

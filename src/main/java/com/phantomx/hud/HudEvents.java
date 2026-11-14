@@ -76,15 +76,22 @@ public final class HudEvents {
             if (!hide && matchesHideList(id)) hide = true;
             if (!hide && HudConfig.BUILTIN_HIDE.get() && builtinHide(id)) hide = true;
             if (!hide && HudConfig.SHOW_BOSS.get() && HudConfig.AUTO_HIDE_BOSS.get() && looksLikeBossOverlay(id)) hide = true;
-            if (hide) e.setCanceled(true);
+            if (hide && !protectedOverlay(id)) e.setCanceled(true);
         }
 
         /** Epic Fight's HUD and Iron's Spells' mana bar / spell slots (its cast and imbue overlays stay). */
         private static boolean builtinHide(ResourceLocation id) {
             String ns = id.getNamespace(), path = id.getPath().toLowerCase(Locale.ROOT);
             if (ns.equals("epicfight")) return true;
-            if (ns.equals("irons_spellbooks")) return !(path.contains("cast") || path.contains("active") || path.contains("imbued"));
-            return false;
+            return ns.equals("irons_spellbooks") && (path.equals("mana_overlay") || path.equals("spell_bar"));
+        }
+
+        /** Overlays that must always stay: Iron's spell wheel (hold-to-select), cast / recast bars, screen effects, tooltips. */
+        private static boolean protectedOverlay(ResourceLocation id) {
+            if (!id.getNamespace().equals("irons_spellbooks")) return false;
+            String path = id.getPath();
+            return path.equals("spell_wheel") || path.equals("cast_bar") || path.equals("recast_bar")
+                    || path.equals("screen_effects") || path.equals("screen_tooltip");
         }
 
         private static boolean looksLikeBossOverlay(ResourceLocation id) {
@@ -98,49 +105,43 @@ public final class HudEvents {
             return true;
         }
 
-        // The vanilla boss bars are NOT cancelled (that stops mods that hook the boss bar from working, e.g. boss
-        // intros). They are drawn 20000 px above the screen instead, so every hook still runs but nothing is visible.
-        private static boolean bossPushed;
+        // Vanilla boss bars and the vanilla hotbar are NOT cancelled (that stops mods that hook them, e.g. boss intros).
+        // They are drawn 20000 px above the screen instead, so every hook still runs but nothing is visible.
+        private static ResourceLocation sunk;
 
-        private static boolean sinkBoss(RenderGuiOverlayEvent e) {
-            return HudConfig.ENABLED.get() && HudConfig.SHOW_BOSS.get() && !BossBars.unavailable()
-                    && e.getOverlay().id().equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id());
+        private static boolean sinkWanted(RenderGuiOverlayEvent e) {
+            if (!HudConfig.ENABLED.get()) return false;
+            ResourceLocation id = e.getOverlay().id();
+            if (id.equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id())) return HudConfig.SHOW_BOSS.get() && !BossBars.unavailable();
+            if (id.equals(VanillaGuiOverlay.HOTBAR.id())) {
+                Player p = Minecraft.getInstance().player;
+                return HudConfig.SHOW_HOTBAR.get() && p != null && !p.isSpectator() && !Minecraft.getInstance().options.hideGui;
+            }
+            return false;
         }
 
         @SubscribeEvent(priority = EventPriority.HIGHEST)
-        public static void bossSinkPre(RenderGuiOverlayEvent.Pre e) {
-            if (!sinkBoss(e)) return;
+        public static void sinkPre(RenderGuiOverlayEvent.Pre e) {
+            if (!sinkWanted(e)) return;
             e.getGuiGraphics().pose().pushPose();
             e.getGuiGraphics().pose().translate(0f, -20000f, 0f);
-            bossPushed = true;
+            sunk = e.getOverlay().id();
         }
 
         @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-        public static void bossSinkCancelled(RenderGuiOverlayEvent.Pre e) {
-            if (bossPushed && e.isCanceled() && e.getOverlay().id().equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id())) {
+        public static void sinkCancelled(RenderGuiOverlayEvent.Pre e) {
+            if (sunk != null && e.isCanceled() && sunk.equals(e.getOverlay().id())) {
                 e.getGuiGraphics().pose().popPose();
-                bossPushed = false;
+                sunk = null;
             }
         }
 
         @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-        public static void bossSinkPost(RenderGuiOverlayEvent.Post e) {
-            if (bossPushed && e.getOverlay().id().equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id())) {
+        public static void sinkPost(RenderGuiOverlayEvent.Post e) {
+            if (sunk != null && sunk.equals(e.getOverlay().id())) {
                 e.getGuiGraphics().pose().popPose();
-                bossPushed = false;
+                sunk = null;
             }
-        }
-
-        private static boolean matchesHideList(ResourceLocation id) {
-            String full = id.toString();
-            for (String pat : HudConfig.HIDE_OVERLAYS.get()) {
-                if (pat.endsWith("*")) {
-                    if (full.startsWith(pat.substring(0, pat.length() - 1))) return true;
-                } else if (full.equals(pat)) {
-                    return true;
-                }
-            }
-            return false;
         }
 
         // held item name: lifted so it clears the XP bar. Lowest priority so we only push when nobody cancelled it.
@@ -184,6 +185,7 @@ public final class HudEvents {
         float top = PlayerBlock.crestTopScreenY(sh, scale);
         if (HudConfig.SHOW_SKILLS.get()) top = SkillRow.render(g, p, sh, scale, partial);
         if (HudConfig.SHOW_EQUIPMENT.get()) EquipmentSlots.render(g, mc.font, p, sw, sh, scale, partial);
+        if (HudConfig.SHOW_HOTBAR.get()) HotbarBar.render(g, mc.font, p, sw, sh, scale, partial);
         if (HudConfig.SHOW_EFFECTS.get()) EffectsStrip.render(g, mc.font, p, sw, sh, scale);
         if (HudConfig.SHOW_BOSS.get()) BossBars.renderAll(g, sw, sh, scale);
     }

@@ -42,8 +42,8 @@ final class PlayerBlock {
         g.pose().pushPose();
         g.pose().translate(blockTx, blockTy, 0);
         g.pose().scale(scale, scale, 1f);
-        drawCrest(g, p);
-        drawBars(g, font, p, dt);
+        drawCrest(g, font, p, dt);
+        drawSecondaryBars(g, font);
         if (HudConfig.SHOW_CHIPS.get()) drawChips(g, font, p);
         g.pose().popPose();
 
@@ -61,7 +61,7 @@ final class PlayerBlock {
      * Layering: the two upper slopes are behind the model (the head can rise past them), the model is in front of those,
      * and the two lower slopes are drawn over the model and clip it, so the body is enclosed by the lower half.
      */
-    private static void drawCrest(GuiGraphics g, Player p) {
+    private static void drawCrest(GuiGraphics g, Font font, Player p, float dt) {
         Matrix4f m = g.pose().last().pose();
         // upper half: behind the model
         diamondHalf(m, withAlpha(GOLD, 120), CX, CY, R + 3f, R + 3f, 0.6f, true);
@@ -70,6 +70,9 @@ final class PlayerBlock {
         diamondHalf(m, withAlpha(GOLD, 90), CX, CY, R - 6.5f, R - 6.5f, 0.5f, true);
         diamondFill(m, INK, CX, CY - R - 3f, 2.8f, 2.8f);
         diamondFill(m, GOLD, CX, CY - R - 3f, 2f, 2f);
+
+        // the health bar (and absorption) belong to the upper slope: behind the model like the upper frame
+        drawHealth(g, font, p, dt);
 
         drawModel(g, p);
 
@@ -156,7 +159,7 @@ final class PlayerBlock {
 
     private static final float GAP = 6f;
 
-    private static void drawBars(GuiGraphics g, Font font, Player p, float dt) {
+    private static void drawHealth(GuiGraphics g, Font font, Player p, float dt) {
         float hp = clamp01(p.getHealth() / Math.max(1f, p.getMaxHealth()));
         if (trailHealth < 0f || hp >= trailHealth) trailHealth = hp;
         else trailHealth = Math.max(hp, trailHealth - dt * 0.35f);
@@ -165,15 +168,17 @@ final class PlayerBlock {
                 : p.hasEffect(MobEffects.POISON) ? argb(120, 156, 40, 255) : RED;
         int hpDark = p.hasEffect(MobEffects.WITHER) ? argb(30, 26, 28, 255) : p.hasEffect(MobEffects.POISON) ? argb(60, 84, 20, 255) : DRED;
         String hpText = Math.round(p.getHealth()) + "/" + Math.round(p.getMaxHealth());
-        float healthY = CY - R * 0.62f + 0.5f;
-        bar(g, font, true, healthY, 11f, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
+        float healthY = CY - R * 0.62f + 1.5f;
+        bar(g, font, true, healthY, 9.5f, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
         if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), healthY);
+    }
 
-        float staminaY = CY + R * 0.20f;
+    private static void drawSecondaryBars(GuiGraphics g, Font font) {
+        float staminaY = CY + R * 0.20f - 1f;
         float[] st = ResourceSources.stamina();
         if (st != null) bar(g, font, false, staminaY, 8f, STAMINA_LEN, clamp01(st[0] / st[1]), CREAM, argb(120, 112, 96, 255), -1f,
                 Math.round(st[0]) + "/" + Math.round(st[1]));
-        float manaY = staminaY + 9f;
+        float manaY = CY + R * 0.20f + 9f;
         float[] mn = ResourceSources.mana();
         if (mn != null) bar(g, font, false, manaY, 8f, MANA_LEN, clamp01(mn[0] / mn[1]), BLUE, argb(52, 70, 104, 255), -1f,
                 Math.round(mn[0]) + "/" + Math.round(mn[1]));
@@ -269,57 +274,77 @@ final class PlayerBlock {
     // ------------------------------------------------------------------------------------------ armor / food
 
     private static void drawChips(GuiGraphics g, Font font, Player p) {
-        float y0 = CY + R * 0.20f + 19.5f;
-        float x0 = CX + R - (y0 - CY) + GAP + 3f;
+        float h = 8.5f, y0 = CY + R * 0.20f + 19.5f;
+        float start = left(false, y0);                 // top-left corner of the first chip, on the crest's lower slope
+        float w = 46f, gap = 3.2f;
         int armor = p.getArmorValue(), food = p.getFoodData().getFoodLevel();
-        float w = 40f;
-        mini(g, font, x0, y0, w, true, clamp01(armor / 20f), argb(150, 168, 206, 255), argb(84, 100, 130, 255), armor);
-        mini(g, font, x0 + w + 6f, y0, w, false, clamp01(food / 20f), argb(222, 150, 56, 255), argb(130, 84, 34, 255), food);
+        chip(g, font, start, y0, h, w, true, clamp01(armor / 20f), armor);
+        chip(g, font, start + w + gap, y0, h, w, false, clamp01(food / 20f), food);
     }
 
-    /** Small rectangular gauge: icon plate on the left end, fill with the value inside. */
-    private static void mini(GuiGraphics g, Font font, float x, float y, float w, boolean armor, float pct, int col, int dark, int value) {
+    /** Parallelogram whose top edge starts at xt0..xt1 (at y0) and leans down-left at 45 degrees, like the lower bars. */
+    private static float[] lean(float y0, float xt0, float xt1, float ya, float yb) {
+        float sa = ya - y0, sb = yb - y0;
+        return new float[] {xt0 - sa, ya, xt1 - sa, ya, xt1 - sb, yb, xt0 - sb, yb};
+    }
+
+    /** Armor / food gauge: slanted at both ends like the bars, icon plate on the left, value inside the fill. */
+    private static void chip(GuiGraphics g, Font font, float xt, float y0, float h, float w, boolean armor, float pct, int value) {
         Matrix4f m = g.pose().last().pose();
-        float h = 8f, tab = 11f;
-        rect(m, withAlpha(GOLD, 215), x - 0.8f, y - 0.8f, x + w + 0.8f, y + h + 0.8f);
-        rect(m, withAlpha(INK, 248), x, y, x + w, y + h);
-        // icon plate
-        rect(m, withAlpha(argb(40, 36, 70, 255), 255), x, y, x + tab, y + h);
-        line(m, withAlpha(GOLD, 190), x + tab, y, x + tab, y + h, 0.7f);
+        float y1 = y0 + h, tab = 13f;
+        int col = armor ? argb(150, 192, 246, 255) : argb(242, 164, 62, 255);
+        int dark = armor ? argb(58, 90, 150, 255) : argb(138, 74, 30, 255);
+        poly(m, withAlpha(GOLD, 215), lean(y0, xt - 1.1f, xt + w + 1.1f, y0 - 0.9f, y1 + 0.9f));
+        poly(m, withAlpha(INK, 248), lean(y0, xt, xt + w, y0, y1));
+        polyColors(m, 0f, lean(y0, xt, xt + tab, y0, y1),
+                new int[] {argb(50, 46, 88, 255), argb(50, 46, 88, 255), argb(24, 22, 46, 255), argb(24, 22, 46, 255)});
+        line(m, withAlpha(GOLD, 190), xt + tab, y0, xt + tab - h, y1, 0.7f);
+
         g.pose().pushPose();
-        g.pose().translate(x + tab / 2f, y + h / 2f, 0f);
+        g.pose().translate(xt + tab / 2f - h / 2f, y0 + h / 2f, 0f);
         g.pose().scale(0.82f, 0.82f, 1f);
         Matrix4f mi = g.pose().last().pose();
-        if (armor) shield(mi, 0f, 0f, col); else drumstick(mi, 0f, 0f, col);
+        if (armor) shield(mi, 0f, 0f); else drumstick(mi, 0f, 0f);
         g.pose().popPose();
-        // fill
-        float fx = x + tab + 0.9f, fw = w - tab - 1.8f;
+
+        float fx0 = xt + tab + 0.9f, fw = w - tab - 1.8f;
         if (pct > 0.002f) {
-            rect(m, withAlpha(dark, 255), fx, y + 0.9f, fx + fw * pct, y + h - 0.9f);
-            rect(m, col, fx, y + 0.9f, fx + fw * pct, y + h * 0.5f);
+            polyColors(m, 0f, lean(y0, fx0, fx0 + fw * pct, y0 + 0.9f, y1 - 0.9f), new int[] {col, col, dark, dark});
+            poly(m, withAlpha(WHITE, 70), lean(y0, fx0, fx0 + fw * pct, y0 + 0.9f, y0 + h * 0.4f));
         }
         String t = String.valueOf(value);
         float ts = 0.72f;
         g.pose().pushPose();
-        g.pose().translate(fx + fw / 2f, y + (h - 7f * ts) / 2f, 0f);
+        g.pose().translate((fx0 + fx0 + fw) / 2f - h / 2f, y0 + (h - 7f * ts) / 2f, 0f);
         g.pose().scale(ts, ts, 1f);
         g.drawString(font, t, Math.round(-font.width(t) / 2f), 0, WHITE, true);
         g.pose().popPose();
     }
 
-    private static void shield(Matrix4f m, float x, float y, int tint) {
-        poly(m, GOLD, x - 3.6f, y - 3.9f, x + 3.6f, y - 3.9f, x + 3.6f, y + 0.4f, x, y + 4.4f, x - 3.6f, y + 0.4f);
-        poly(m, tint, x - 2.6f, y - 2.9f, x + 2.6f, y - 2.9f, x + 2.6f, y + 0.1f, x, y + 3.2f, x - 2.6f, y + 0.1f);
-        poly(m, withAlpha(WHITE, 100), x - 2.6f, y - 2.9f, x, y - 2.9f, x, y + 3.2f, x - 2.6f, y + 0.1f);
+    /** Shield: gold rim, steel face with a bevel, centre ridge and a gold boss. */
+    private static void shield(Matrix4f m, float x, float y) {
+        int g1 = argb(248, 218, 130, 255), g2 = argb(168, 120, 46, 255);
+        polyColors(m, 0f, new float[] {x - 4.3f, y - 4.5f, x + 4.3f, y - 4.5f, x + 4.3f, y + 0.7f, x, y + 5.1f, x - 4.3f, y + 0.7f},
+                new int[] {g1, g1, g2, g2, g2});
+        int f1 = argb(170, 208, 255, 255), f2 = argb(60, 92, 150, 255);
+        polyColors(m, 0f, new float[] {x - 3.3f, y - 3.6f, x + 3.3f, y - 3.6f, x + 3.3f, y + 0.4f, x, y + 4.0f, x - 3.3f, y + 0.4f},
+                new int[] {f1, f1, f2, f2, f2});
+        poly(m, withAlpha(WHITE, 70), x - 3.3f, y - 3.6f, x, y - 3.6f, x, y + 4.0f, x - 3.3f, y + 0.4f);
+        poly(m, withAlpha(INK, 80), x, y - 3.6f, x + 3.3f, y - 3.6f, x + 3.3f, y + 0.4f, x, y + 4.0f);
+        line(m, withAlpha(WHITE, 130), x - 3.0f, y - 3.4f, x + 3.0f, y - 3.4f, 0.5f);
+        diamondFill(m, GOLD, x, y - 0.6f, 1.2f, 1.2f);
+        diamondFill(m, withAlpha(WHITE, 150), x - 0.2f, y - 0.8f, 0.4f, 0.4f);
     }
 
-    private static void drumstick(Matrix4f m, float x, float y, int tint) {
-        line(m, BONE, x + 0.5f, y + 0.5f, x + 3.4f, y + 3.4f, 1.3f);
-        ellipse(m, BONE, x + 3.0f, y + 4.0f, 1.0f, 1.0f);
-        ellipse(m, BONE, x + 4.0f, y + 3.0f, 1.0f, 1.0f);
-        ellipse(m, GOLD, x - 1.2f, y - 1.2f, 3.5f, 3.2f);
-        ellipse(m, tint, x - 1.2f, y - 1.2f, 2.8f, 2.5f);
-        ellipse(m, withAlpha(WHITE, 110), x - 2.2f, y - 2.2f, 1.1f, 0.9f);
+    /** Drumstick: shaded meat with a highlight and a bone with two knobs. */
+    private static void drumstick(Matrix4f m, float x, float y) {
+        line(m, BONE, x + 0.6f, y + 0.6f, x + 3.9f, y + 3.9f, 1.5f);
+        ellipse(m, BONE, x + 3.6f, y + 4.7f, 0.95f, 0.95f);
+        ellipse(m, BONE, x + 4.7f, y + 3.6f, 0.95f, 0.95f);
+        ellipse(m, argb(104, 48, 20, 255), x - 1.1f, y - 1.1f, 4.0f, 3.6f);
+        ellipse(m, argb(160, 80, 32, 255), x - 1.1f, y - 1.1f, 3.4f, 3.0f);
+        ellipse(m, argb(240, 150, 64, 255), x - 1.5f, y - 1.5f, 2.7f, 2.3f);
+        ellipse(m, withAlpha(WHITE, 130), x - 2.4f, y - 2.4f, 1.0f, 0.7f);
     }
 
     // ------------------------------------------------------------------------------------------ xp
@@ -332,16 +357,13 @@ final class PlayerBlock {
      */
     private static void drawXp(GuiGraphics g, Font font, Player p, int sw, int sh, float scale) {
         g.pose().pushPose();
-        g.pose().translate(sw / 2f, sh - 22f - 13f, 0);
+        g.pose().translate(sw / 2f, sh - 22f - 16f, 0);
         g.pose().scale(scale, scale, 1f);
         Matrix4f m = g.pose().last().pose();
         final int segs = 10;
         float segW = 8.6f, gap = 1.5f, sl = 2.4f, h = 3.6f, step = segW + gap, len = segW - sl;
 
-        String lvl = String.valueOf(p.experienceLevel);
-        float tw = font.width(lvl);
-        float hw = Math.max(10f, tw / 2f + 6.5f), hh = hw * 0.92f;
-        float inner = hw + 3.2f;
+        float inner = 15f;
 
         float progress = clamp01(p.experienceProgress) * segs;
         float wave = (System.currentTimeMillis() % 2800L) / 2800f * (segs + 4) - 2f;
@@ -364,15 +386,21 @@ final class PlayerBlock {
             }
         }
 
-        // level diamond
-        float cy = h / 2f;
-        diamondFill(m, INK, 0, cy, hw + 1f, hh + 1f);
-        diamondFill(m, withAlpha(argb(26, 70, 52, 255), 235), 0, cy, hw - 2.2f, hh - 2.0f);
-        diamondLine(m, GOLD, 0, cy, hw, hh, 0.9f);
-        diamondLine(m, withAlpha(XP_TOP, 150), 0, cy, hw - 3f, hh - 2.8f, 0.45f);
-        diamondFill(m, GOLD, 0, cy - hh - 1.4f, 1.5f, 1.5f);
-        diamondFill(m, GOLD, 0, cy + hh + 1.4f, 1.5f, 1.5f);
-        g.drawString(font, lvl, Math.round(-tw / 2f), Math.round(cy - 3.5f), BONE, true);
+        // level badge: fixed size, softly rounded diamond, up to three digits
+        float cy = h / 2f, hw = 10.5f;
+        poly(m, GOLD, roundedDiamond(0, cy, hw + 1.4f, hw + 1.4f, 4.6f));
+        poly(m, INK, roundedDiamond(0, cy, hw, hw, 4.1f));
+        poly(m, withAlpha(XP_TOP, 150), roundedDiamond(0, cy, hw - 1.0f, hw - 1.0f, 3.7f));
+        poly(m, argb(20, 44, 36, 255), roundedDiamond(0, cy, hw - 1.9f, hw - 1.9f, 3.3f));
+        diamondFill(m, GOLD, 0, cy - hw - 2.8f, 1.5f, 1.5f);
+        diamondFill(m, GOLD, 0, cy + hw + 2.8f, 1.5f, 1.5f);
+        String lvl = String.valueOf(Math.min(999, p.experienceLevel));
+        float ts = lvl.length() >= 3 ? 0.8f : 1f, tw = font.width(lvl);
+        g.pose().pushPose();
+        g.pose().translate(0f, cy, 0f);
+        g.pose().scale(ts, ts, 1f);
+        g.drawString(font, lvl, Math.round(-tw / 2f), -4, BONE, true);
+        g.pose().popPose();
         g.pose().popPose();
     }
 

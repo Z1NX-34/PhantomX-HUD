@@ -75,7 +75,69 @@ final class PostureLink {
         info.entity = e;
         info.byName = byName;
         if (e != null) readPosture(e, info);
+        if (info.posture < 0f) scanStore(mc, norm(ev.getName().getString()), info);
+        if (LOGGED.add(ev.getId())) {
+            LOG.info("Boss '{}': entity={} (#{}), matchedByName={}, posture={}, posture entries known to the client={}",
+                    ev.getName().getString(), info.entity == null ? "none" : net.minecraft.world.entity.EntityType.getKey(info.entity.getType()),
+                    info.entity == null ? -1 : info.entity.getId(), byName, info.posture < 0f ? "none" : String.valueOf(info.posture), storeSize());
+        }
         return info;
+    }
+
+    private static final java.util.Set<UUID> LOGGED = new java.util.HashSet<>();
+    private static Field statesF;
+
+    private static boolean ensureInit() {
+        if (failed || !ModList.get().isLoaded("epicfight_posture_integration")) return false;
+        if (init) return true;
+        try {
+            Class<?> store = Class.forName("dev.nire9734.epicfightposture.client.ClientPostureStore");
+            storeGet = store.getMethod("get", int.class, UUID.class);
+            statesF = store.getDeclaredField("STATES");
+            statesF.setAccessible(true);
+            Class<?> entry = Class.forName("dev.nire9734.epicfightposture.client.ClientPostureStore$Entry");
+            curF = entry.getField("current");
+            maxF = entry.getField("max");
+            brokenF = entry.getField("broken");
+            init = true;
+            return true;
+        } catch (Throwable t) {
+            failed = true;
+            LOG.warn("Posture data unavailable: {}", t.toString());
+            return false;
+        }
+    }
+
+    private static int storeSize() {
+        try {
+            if (!ensureInit()) return -1;
+            return ((java.util.Map<?, ?>) statesF.get(null)).size();
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /** The matched entity has no posture entry: look for any other entity with the boss's name that does. */
+    private static void scanStore(Minecraft mc, String boss, Info info) {
+        try {
+            if (!ensureInit() || mc.level == null) return;
+            for (java.util.Map.Entry<?, ?> en : ((java.util.Map<?, ?>) statesF.get(null)).entrySet()) {
+                Entity ent = mc.level.getEntity((Integer) en.getKey());
+                if (!(ent instanceof LivingEntity le) || !le.isAlive()) continue;
+                String n = norm(le.getName().getString());
+                boolean same = n.length() >= 4 && (boss.contains(n) || (boss.length() >= 4 && n.contains(boss)) || sharedWord(boss, le.getName().getString()));
+                if (!same && le != info.entity) continue;
+                Object entry = en.getValue();
+                float max = maxF.getFloat(entry);
+                if (max <= 0f) continue;
+                if (info.entity == null) info.entity = le;
+                info.posture = Math.max(0f, Math.min(1f, curF.getFloat(entry) / max));
+                info.broken = brokenF.getBoolean(entry);
+                return;
+            }
+        } catch (Throwable t) {
+            LOG.warn("Posture scan failed: {}", t.toString());
+        }
     }
 
     /**
@@ -133,17 +195,8 @@ final class PostureLink {
     }
 
     private static void readPosture(Entity e, Info info) {
-        if (failed || !ModList.get().isLoaded("epicfight_posture_integration")) return;
+        if (!ensureInit()) return;
         try {
-            if (!init) {
-                Class<?> store = Class.forName("dev.nire9734.epicfightposture.client.ClientPostureStore");
-                storeGet = store.getMethod("get", int.class, UUID.class);
-                Class<?> entry = Class.forName("dev.nire9734.epicfightposture.client.ClientPostureStore$Entry");
-                curF = entry.getField("current");
-                maxF = entry.getField("max");
-                brokenF = entry.getField("broken");
-                init = true;
-            }
             Object entry = storeGet.invoke(null, e.getId(), e.getUUID());
             if (entry == null) return;
             float max = maxF.getFloat(entry);

@@ -157,4 +157,25 @@ final class HudDraw {
         RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
     }
+
+    /** Diamond with softly rounded vertices (quadratic corner arcs), as a convex fan polygon for poly(). */
+    static float[] roundedDiamond(float cx, float cy, float hw, float hh, float r) {
+        float[][] v = {{cx, cy - hh}, {cx + hw, cy}, {cx, cy + hh}, {cx - hw, cy}};
+        int arc = 7;
+        float[] out = new float[4 * (arc + 1) * 2];
+        int n = 0;
+        for (int i = 0; i < 4; i++) {
+            float[] cur = v[i], prev = v[(i + 3) % 4], next = v[(i + 1) % 4];
+            float ax = prev[0] - cur[0], ay = prev[1] - cur[1], al = (float) Math.sqrt(ax * ax + ay * ay);
+            float bx = next[0] - cur[0], by = next[1] - cur[1], bl = (float) Math.sqrt(bx * bx + by * by);
+            float sx = cur[0] + ax / al * r, sy = cur[1] + ay / al * r;
+            float ex = cur[0] + bx / bl * r, ey = cur[1] + by / bl * r;
+            for (int k = 0; k <= arc; k++) {
+                float t = k / (float) arc, u = 1f - t;
+                out[n++] = u * u * sx + 2f * u * t * cur[0] + t * t * ex;
+                out[n++] = u * u * sy + 2f * u * t * cur[1] + t * t * ey;
+            }
+        }
+        return out;
+    }
 }

@@ -8,20 +8,22 @@ import net.minecraft.world.entity.player.Player;
 import org.joml.Matrix4f;
 
 /**
- * Epic Fight skills above the player block at the left edge. Every skill is the same diamond (the special move a
+ * Epic Fight skills above the player block, the first one centred over the crest. Every skill is the same diamond (the special move a
  * little larger); Epic Fight draws the icon itself, cropped to the diamond so nothing bleeds outside it.
  */
 final class SkillRow {
     private SkillRow() {}
 
-    private static final float BIG_HS = 13.5f, SMALL_HS = 11f, GAP = 1.5f;
+    private static final float BIG_HS = 15f, SMALL_HS = 12f, GAP = 1.5f;
 
     /** Draws the row and returns the screen y of its top edge (or the crest top when there is nothing to draw). */
     static float render(GuiGraphics g, Player p, int sh, float scale, float partial) {
         float crestTop = PlayerBlock.crestTopScreenY(sh, scale);
         List<Object> skills = EpicFightSkills.visible();
         if (skills.isEmpty()) return crestTop;
-        float left = HudConfig.MARGIN_X.get() + scale * (PlayerBlock.CX - PlayerBlock.R);
+        float firstHs = EpicFightSkills.isInnate(skills.get(0)) ? BIG_HS : SMALL_HS;
+        // the first diamond (the special move) is centred over the crest, the others follow to its right
+        float left = HudConfig.MARGIN_X.get() + scale * (PlayerBlock.CX - firstHs);
         float cy = crestTop - HudConfig.SKILLS_Y.get() * scale - BIG_HS * scale;
 
         g.pose().pushPose();
