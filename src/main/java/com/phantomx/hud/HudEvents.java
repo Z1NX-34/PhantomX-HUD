@@ -193,11 +193,9 @@ public final class HudEvents {
         logOverlaysOnce();
 
         if (HudConfig.SHOW_COMPASS.get()) CompassBar.render(g, mc.font, p, sw, scale, partial);
-        PlayerBlock.render(g, p, sw, sh, scale);
-        float top = PlayerBlock.crestTopScreenY(sh, scale);
-        if (HudConfig.SHOW_SKILLS.get()) top = SkillRow.render(g, p, sh, scale, partial);
-        if (HudConfig.SHOW_EQUIPMENT.get()) EquipmentSlots.render(g, mc.font, p, sw, sh, scale, partial);
-        if (HudConfig.SHOW_HOTBAR.get()) HotbarBar.render(g, mc.font, p, sw, sh, scale, partial);
+        PlayerBlock.render(g, p, sw, sh, scale, partial);
+        if (HudConfig.SHOW_SKILLS.get()) SkillRow.render(g, p, sh, scale, partial);
+        if (HudConfig.SHOW_HOTBAR.get() || HudConfig.SHOW_XP.get()) DiamondHotbar.render(g, mc.font, p, sw, sh, scale, partial);
         if (HudConfig.SHOW_EFFECTS.get()) EffectsStrip.render(g, mc.font, p, sw, sh, scale);
         if (HudConfig.SHOW_BOSS.get()) BossBars.renderAll(g, sw, sh, scale);
     }
