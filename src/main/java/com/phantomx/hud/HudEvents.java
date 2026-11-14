@@ -144,6 +144,18 @@ public final class HudEvents {
             }
         }
 
+        private static boolean matchesHideList(ResourceLocation id) {
+            String full = id.toString();
+            for (String pat : HudConfig.HIDE_OVERLAYS.get()) {
+                if (pat.endsWith("*")) {
+                    if (full.startsWith(pat.substring(0, pat.length() - 1))) return true;
+                } else if (full.equals(pat)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // held item name: lifted so it clears the XP bar. Lowest priority so we only push when nobody cancelled it.
         @SubscribeEvent(priority = EventPriority.LOWEST)
         public static void itemNamePre(RenderGuiOverlayEvent.Pre e) {
