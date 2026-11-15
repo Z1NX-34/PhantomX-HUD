@@ -146,14 +146,13 @@ final class GaugeSlots {
             line(m, withAlpha(WHITE, 70), x - sw + 0.6f, y + ly, x + sw - 0.6f, y + ly, 0.5f);
         }
 
-        // icon on top of the liquid, fully visible
-        if (kind == 0) icon(g, TEX_MANA, x, y, hs * 1.42f, live ? 1f : 0.4f);
-        else if (kind == 1) vanillaIcon(g, 34, 9, -1, -1, x, y, hs * 1.5f, 1f, 0.85f, 0.9f, 1f);         // vanilla armor icon
-        else vanillaIcon(g, 52, 27, 16, 27, x, y, hs * 1.5f, 1f, 1f, 0.65f, 0.3f);                     // vanilla food icon
-
+        // ornament first, icon on top of it so the lines never cut through the icon
         m = g.pose().last().pose();
         diamondLine(m, live ? GOLD : DGOLD, x, y, hs, hs, 1.1f);
         diamondLine(m, withAlpha(PURP, 200), x, y, hs - 1.9f, hs - 1.9f, 0.45f);
+        if (kind == 0) icon(g, TEX_MANA, x, y, hs * 1.42f, live ? 1f : 0.4f);
+        else if (kind == 1) vanillaIcon(g, 34, 9, -1, -1, x, y, hs * 1.5f, 1f, 0.55f, 0.8f, 1f);       // vanilla armor icon, cooler sheen
+        else vanillaIcon(g, 52, 27, 16, 27, x, y, hs * 1.5f, 1f, 1f, 0.6f, 0.2f);                     // vanilla food icon, warmer sheen
 
         // numbers beside the diamond: current in white, max small and dim after it
         float tcur = 0.7f, tmax = 0.5f;

@@ -113,6 +113,10 @@ public final class HudEvents {
             if (!HudConfig.ENABLED.get()) return false;
             ResourceLocation id = e.getOverlay().id();
             if (id.equals(VanillaGuiOverlay.BOSS_EVENT_PROGRESS.id())) return HudConfig.SHOW_BOSS.get() && !BossBars.unavailable();
+            if (id.equals(VanillaGuiOverlay.MOUNT_HEALTH.id())) {
+                Player rp = Minecraft.getInstance().player;
+                return HudConfig.SHOW_MOUNT.get() && rp != null && rp.getVehicle() instanceof net.minecraft.world.entity.LivingEntity;
+            }
             if (id.equals(VanillaGuiOverlay.HOTBAR.id())) {
                 Player p = Minecraft.getInstance().player;
                 return HudConfig.SHOW_HOTBAR.get() && p != null && !p.isSpectator() && !Minecraft.getInstance().options.hideGui;
@@ -196,6 +200,7 @@ public final class HudEvents {
         PlayerBlock.render(g, p, sw, sh, scale, partial);
         if (HudConfig.SHOW_SKILLS.get()) SkillRow.render(g, p, sh, scale, partial);
         if (HudConfig.SHOW_HOTBAR.get() || HudConfig.SHOW_XP.get()) DiamondHotbar.render(g, mc.font, p, sw, sh, scale, partial);
+        if (HudConfig.SHOW_MOUNT.get()) MountBar.render(g, mc.font, p, sw, sh, scale);
         if (HudConfig.SHOW_EFFECTS.get()) EffectsStrip.render(g, mc.font, p, sw, sh, scale);
         if (HudConfig.SHOW_BOSS.get()) BossBars.renderAll(g, sw, sh, scale);
     }

@@ -222,7 +222,7 @@ final class HudDraw {
             g.blit(VANILLA_ICONS, 0, 0, u, v, 9, 9, 256, 256);
             g.pose().translate(-0.45f, -0.6f, 0f);
             // faint halo
-            RenderSystem.setShaderColor(gr, gg, gb, 0.17f * alpha);
+            RenderSystem.setShaderColor(gr, gg, gb, 0.28f * alpha);
             float[][] o = {{-0.5f, 0f}, {0.5f, 0f}, {0f, -0.5f}, {0f, 0.5f}};
             for (float[] d : o) {
                 g.pose().translate(d[0], d[1], 0f);
@@ -232,8 +232,14 @@ final class HudDraw {
             RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
             if (bgU >= 0) g.blit(VANILLA_ICONS, 0, 0, bgU, bgV, 9, 9, 256, 256);
             g.blit(VANILLA_ICONS, 0, 0, u, v, 9, 9, 256, 256);
+            // additive tinted sheen: shifts the icon's colours a little (only where the icon has pixels)
+            RenderSystem.blendFunc(com.mojang.blaze3d.platform.GlStateManager.SourceFactor.SRC_ALPHA, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE);
+            RenderSystem.setShaderColor(gr, gg, gb, 0.32f * alpha);
+            g.blit(VANILLA_ICONS, 0, 0, u, v, 9, 9, 256, 256);
+            RenderSystem.defaultBlendFunc();
         } finally {
             g.pose().popPose();
+            RenderSystem.defaultBlendFunc();
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }
     }

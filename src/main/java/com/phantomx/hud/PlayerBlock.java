@@ -9,7 +9,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -176,54 +175,41 @@ final class PlayerBlock {
                     Math.round(st[0]) + "/" + Math.round(st[1]));
         }
         if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), st != null);
-        drawMount(g, font, p);
     }
 
     /**
-     * Absorption: a segmented gold bar with exactly the stamina bar's geometry (same top, same height, same frame and
-     * slant), right beside it, starting where the stamina bar ends. At most eight segments (more absorption just makes
-     * each segment worth more); the last one fills partially. The number follows the bar.
+     * Absorption: a row of small gold slanted pips right beside the stamina bar, starting where it ends. At most eight
+     * pips (more absorption just makes each pip worth more); the last pip fills partially. The number follows the row.
+     * The pips use the stamina bar's slope and its inner fill height, so their top and bottom line up with it.
      */
     private static void absorption(GuiGraphics g, Font font, float ab, boolean hasStamina) {
         Matrix4f m = g.pose().last().pose();
-        float y0 = CY + STAMINA_Y, h = STAMINA_H, y1 = y0 + h;
+        float y0 = CY + STAMINA_Y, ins = 1.1f;
+        float ya = y0 + ins, yb = y0 + STAMINA_H - ins;
         float unit = 2f * (float) Math.ceil(ab / 16f);
         int pips = Math.max(1, Math.min(8, (int) Math.ceil(ab / unit)));
-        float ins = 1.1f, insX = ins * 1.45f, pw = 4.8f, gap = 1.0f, step = pw + gap;
-        float len = 2f * insX + pips * step - gap;
-        float start = hasStamina ? left(false, y0) + STAMINA_LEN + 6f : left(false, y0);
-        float xr = start + len;
-        frame(m, start, y0, h, xr);
+        float pw = 5.2f, gap = 1.3f, step = pw + gap;
+        float base = hasStamina ? left(false, y0) + STAMINA_LEN + 2.2f + 3.6f : left(false, y0) + 2f;
         int top = argb(255, 226, 132, 255), bot = argb(196, 142, 54, 255);
+        float lastX = base;
         for (int i = 0; i < pips; i++) {
             float f = i == pips - 1 ? clamp01((ab - i * unit) / unit) : 1f;
             if (f <= 0.01f) continue;
-            float sl = start + insX + i * step;
-            float[] q = stripPts(sl, y0, sl + pw * f, y0 + ins, y1 - ins, 0f);
+            float sl = base + i * step, w = pw * f;
+            float[] q = stripPts(sl, y0, sl + w, ya, yb, 0f);
+            float[] o = stripPts(sl - 0.7f, y0, sl + w + 0.7f, ya - 0.7f, yb + 0.7f, 0f);
+            poly(m, withAlpha(INK, 215), o);
             polyColors(m, 0f, q, new int[] {top, top, bot, bot});
-            float[] hl = stripPts(sl, y0, sl + pw * f, y0 + ins, y0 + ins + 0.9f, 0f);
-            poly(m, withAlpha(WHITE, 110), hl);
+            line(m, withAlpha(WHITE, 120), q[0] + 0.2f, ya + 0.35f, q[2], ya + 0.35f, 0.5f);
+            lastX = sl + w - (yb - y0) * 0.5f;
         }
-        line(m, withAlpha(GOLD, 230), start, y0, xr, y0, 0.7f);
         String t = String.valueOf(Math.round(ab));
         float ts = 0.66f;
         g.pose().pushPose();
-        g.pose().translate(xr - h / 2f + 4f, y0 + (h - 7f * ts) / 2f, 0f);
+        g.pose().translate(lastX + 5.2f, y0 + (STAMINA_H - 7f * ts) / 2f, 0f);
         g.pose().scale(ts, ts, 1f);
         g.drawString(font, t, 0, 0, argb(255, 226, 140, 255), true);
         g.pose().popPose();
-    }
-
-    /** Health of the mount you are riding (any living entity, vanilla or modded), a small bar above the refill diamonds. */
-    private static void drawMount(GuiGraphics g, Font font, Player p) {
-        if (!(p.getVehicle() instanceof LivingEntity mount)) return;
-        float max = mount.getMaxHealth();
-        if (max <= 0f) return;
-        float h = 5.4f, len = 104f;
-        float y0 = GaugeSlots.rowTop() - 3.6f - h;
-        float start = CX + R + 3f - Math.abs(y0 + h / 2f - CY) + 7.5f;
-        barAt(g, font, start, y0, h, len, clamp01(mount.getHealth() / max), argb(214, 140, 52, 255), argb(120, 70, 24, 255), -1f,
-                Math.round(mount.getHealth()) + "/" + Math.round(max));
     }
 
     /** Left boundary of a bar at height y: follows the crest's lower-right edge plus a gap. */
