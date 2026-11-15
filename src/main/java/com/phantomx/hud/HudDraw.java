@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -177,5 +178,63 @@ final class HudDraw {
             }
         }
         return out;
+    }
+
+    /** Draws a 32x32 texture centred on (cx, cy), scaled to 'size' GUI pixels, with the given opacity. */
+    static void icon(GuiGraphics g, ResourceLocation tex, float cx, float cy, float size, float alpha) {
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+        g.pose().pushPose();
+        g.pose().translate(cx - size / 2f, cy - size / 2f, 0f);
+        float s = size / 32f;
+        g.pose().scale(s, s, 1f);
+        try {
+            g.blit(tex, 0, 0, 0, 0, 32, 32, 32, 32);
+        } finally {
+            g.pose().popPose();
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+        }
+    }
+
+    private static final ResourceLocation VANILLA_ICONS = new ResourceLocation("textures/gui/icons.png");
+
+    /**
+     * Draws a 9x9 vanilla HUD icon (from textures/gui/icons.png, so your texture pack's version) centred on (cx, cy).
+     * The size snaps to whole screen pixels per texel, so it stays perfectly sharp. A soft shadow and a faint tinted halo
+     * (glow = r,g,b in 0..1) are the only additions. bgU/bgV: optional icon drawn behind (-1 = none).
+     */
+    static void vanillaIcon(GuiGraphics g, int u, int v, int bgU, int bgV, float cx, float cy, float size, float alpha,
+            float gr, float gg, float gb) {
+        float total = (float) Minecraft.getInstance().getWindow().getGuiScale() * g.pose().last().pose().m00();
+        int n = Math.max(1, Math.round(size * total / 9f));
+        float s = 9f * n / total;                       // GUI size of the whole icon
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        g.pose().pushPose();
+        g.pose().translate(cx - s / 2f, cy - s / 2f, 0f);
+        float k = s / 9f;                               // GUI size of one texel
+        g.pose().scale(k, k, 1f);
+        try {
+            // shadow
+            RenderSystem.setShaderColor(0f, 0f, 0f, 0.5f * alpha);
+            g.pose().translate(0.45f, 0.6f, 0f);
+            g.blit(VANILLA_ICONS, 0, 0, u, v, 9, 9, 256, 256);
+            g.pose().translate(-0.45f, -0.6f, 0f);
+            // faint halo
+            RenderSystem.setShaderColor(gr, gg, gb, 0.17f * alpha);
+            float[][] o = {{-0.5f, 0f}, {0.5f, 0f}, {0f, -0.5f}, {0f, 0.5f}};
+            for (float[] d : o) {
+                g.pose().translate(d[0], d[1], 0f);
+                g.blit(VANILLA_ICONS, 0, 0, u, v, 9, 9, 256, 256);
+                g.pose().translate(-d[0], -d[1], 0f);
+            }
+            RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+            if (bgU >= 0) g.blit(VANILLA_ICONS, 0, 0, bgU, bgV, 9, 9, 256, 256);
+            g.blit(VANILLA_ICONS, 0, 0, u, v, 9, 9, 256, 256);
+        } finally {
+            g.pose().popPose();
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+        }
     }
 }

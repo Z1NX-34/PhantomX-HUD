@@ -4,6 +4,7 @@ import static com.phantomx.hud.HudDraw.*;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -22,7 +23,15 @@ final class GaugeSlots {
     private GaugeSlots() {}
 
     private static final float HS_SPECIAL = 19.2f * 0.8f;
-    private static final float HS_MANA = 11.7f * 0.95f * 0.95f, HS_SMALL = 11.7f * 0.8f * 0.9f;
+    static final float HS_MANA = 11.7f * 0.95f * 0.95f;
+    private static final float HS_SMALL = 11.7f * 0.8f * 0.9f * 0.85f;
+    private static final ResourceLocation TEX_MANA = new ResourceLocation(PhantomXHud.MODID, "textures/gui/mana.png");
+    private static final ResourceLocation TEX_MOVE = new ResourceLocation(PhantomXHud.MODID, "textures/gui/default_move.png");
+
+    /** Top y of the refill row (relative to the block origin), used to stack the mount bar above it. */
+    static float rowTop() {
+        return PlayerBlock.CY - 1.5f - 2f * HS_MANA;
+    }
     private static final float GAP = 2.4f;
 
     static void render(GuiGraphics g, Font font, Player p, float partial) {
@@ -59,20 +68,11 @@ final class GaugeSlots {
             EpicFightSkills.draw(g, innate, x, y, hm * 1.5f, partial);
             endDiamondClip(g);
         } else {
-            defaultMove(m, x, y, hs / 12f * 0.95f);
+            icon(g, TEX_MOVE, x, y, hs * 1.45f, 0.8f);
         }
         m = g.pose().last().pose();
         diamondLine(m, GOLD, x, y, hs, hs, 1.3f);
         diamondLine(m, withAlpha(PURP, 190), x, y, hs - 2.6f, hs - 2.6f, 0.55f);
-        diamondFill(m, GOLD, x - hs - 1.2f, y, 1.7f, 1.7f);
-        diamondFill(m, GOLD, x + hs + 1.2f, y, 1.7f, 1.7f);
-    }
-
-    /** The default special-move icon: two crossing slashes with a bright spark. */
-    private static void defaultMove(Matrix4f m, float x, float y, float s) {
-        line(m, argb(122, 208, 240, 255), x - 5.2f * s, y - 5.2f * s, x + 5.4f * s, y + 5.4f * s, 1.7f * s);
-        line(m, argb(191, 244, 255, 255), x - 6f * s, y + 5.2f * s, x + 6f * s, y - 5.6f * s, 2.3f * s);
-        ellipse(m, WHITE, x, y, 1.5f * s, 1.5f * s);
     }
 
     // ------------------------------------------------------------------------------------------ refill diamonds
@@ -84,18 +84,18 @@ final class GaugeSlots {
         float ym = bottom - HS_MANA;
         float x = cx + rg - Math.abs(ym - cy) + HS_MANA + GAP + 0.2f;
         float[] mana = ResourceSources.mana();
-        x = refill(g, font, x, ym, HS_MANA, 0, mana == null ? 0f : mana[0] / mana[1], argb(74, 134, 232, 255), argb(34, 70, 150, 255),
+        x = refill(g, font, x, ym, HS_MANA, 0, mana == null ? 0f : mana[0] / mana[1], argb(54, 100, 190, 255), argb(24, 46, 110, 255),
                 mana == null ? "-" : fmt(mana[0]), mana == null ? "" : "/" + fmt(mana[1]), mana != null);
 
         float ys = bottom - HS_SMALL;
         float[] ar = armor(p);
         x += HS_SMALL;
-        x = refill(g, font, x, ys, HS_SMALL, 1, ar[0] / ar[1], argb(143, 180, 236, 255), argb(70, 96, 150, 255),
+        x = refill(g, font, x, ys, HS_SMALL, 1, ar[0] / ar[1], argb(88, 104, 138, 255), argb(44, 54, 84, 255),
                 fmt(ar[0]), "/" + fmt(ar[1]), true);
 
         x += HS_SMALL;
         int food = p.getFoodData().getFoodLevel();
-        refill(g, font, x, ys, HS_SMALL, 2, food / 20f, argb(236, 148, 62, 255), argb(150, 80, 30, 255),
+        refill(g, font, x, ys, HS_SMALL, 2, food / 20f, argb(150, 92, 44, 255), argb(92, 50, 24, 255),
                 fmt(food), "/20", true);
     }
 
@@ -139,21 +139,17 @@ final class GaugeSlots {
             float[] xy;
             if (ly >= 0f) xy = new float[] {x - (h - ly), y + ly, x + (h - ly), y + ly, x, y + h};
             else xy = new float[] {x - (h + ly), y + ly, x + (h + ly), y + ly, x + h, y, x, y + h, x - h, y};
-            int top = withAlpha(col, 165), bot = withAlpha(dark, 200);
+            int top = withAlpha(col, 120), bot = withAlpha(dark, 170);
             int[] cols = xy.length == 6 ? new int[] {top, top, bot} : new int[] {top, top, top, bot, top};
             polyColors(m, 0f, xy, cols);
             float sw = ly >= 0f ? h - ly : h + ly;
-            line(m, withAlpha(WHITE, 150), x - sw + 0.6f, y + ly, x + sw - 0.6f, y + ly, 0.6f);
+            line(m, withAlpha(WHITE, 70), x - sw + 0.6f, y + ly, x + sw - 0.6f, y + ly, 0.5f);
         }
 
         // icon on top of the liquid, fully visible
-        g.pose().pushPose();
-        g.pose().translate(x, y, 0f);
-        float is = hs / 8.6f * 0.82f;
-        g.pose().scale(is, is, 1f);
-        Matrix4f mi = g.pose().last().pose();
-        if (kind == 0) crystal(mi); else if (kind == 1) chestplate(mi); else drumstick(mi);
-        g.pose().popPose();
+        if (kind == 0) icon(g, TEX_MANA, x, y, hs * 1.42f, live ? 1f : 0.4f);
+        else if (kind == 1) vanillaIcon(g, 34, 9, -1, -1, x, y, hs * 1.5f, 1f, 0.85f, 0.9f, 1f);         // vanilla armor icon
+        else vanillaIcon(g, 52, 27, 16, 27, x, y, hs * 1.5f, 1f, 1f, 0.65f, 0.3f);                     // vanilla food icon
 
         m = g.pose().last().pose();
         diamondLine(m, live ? GOLD : DGOLD, x, y, hs, hs, 1.1f);
@@ -202,37 +198,5 @@ final class GaugeSlots {
     private static String trim(double d) {
         String s = String.format(java.util.Locale.ROOT, "%.1f", Math.floor(d * 10) / 10.0);
         return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s;
-    }
-
-    // ------------------------------------------------------------------------------------------ icons (centred on 0,0)
-
-    private static void crystal(Matrix4f m) {
-        poly(m, argb(90, 143, 224, 255), 0f, -6.5f, 4.2f, -1f, 0f, 6.5f, -4.2f, -1f);
-        poly(m, argb(168, 208, 255, 255), 0f, -6.5f, 4.2f, -1f, 0f, 0.5f, -1.6f, -2f);
-        poly(m, argb(46, 86, 168, 255), 0f, 6.5f, -4.2f, -1f, 0f, 0.5f);
-    }
-
-    private static void chestplate(Matrix4f m) {
-        float x = 0f, y = 0f;
-        int s1 = argb(188, 214, 255, 255), s2 = argb(70, 100, 156, 255);
-        polyColors(m, 0f, new float[] {x - 3.5f, y - 3.9f, x + 3.5f, y - 3.9f, x + 3.0f, y + 4.2f, x - 3.0f, y + 4.2f}, new int[] {s1, s1, s2, s2});
-        poly(m, withAlpha(WHITE, 70), x - 3.5f, y - 3.9f, x, y - 3.9f, x, y + 4.2f, x - 3.0f, y + 4.2f);
-        poly(m, withAlpha(INK, 80), x, y - 3.9f, x + 3.5f, y - 3.9f, x + 3.0f, y + 4.2f, x, y + 4.2f);
-        int g1 = argb(248, 218, 130, 255), g2 = argb(168, 120, 46, 255);
-        polyColors(m, 0f, new float[] {x - 5.2f, y - 4.1f, x - 2.5f, y - 4.1f, x - 2.5f, y - 1.1f, x - 5.2f, y - 1.9f}, new int[] {g1, g1, g2, g2});
-        polyColors(m, 0f, new float[] {x + 2.5f, y - 4.1f, x + 5.2f, y - 4.1f, x + 5.2f, y - 1.9f, x + 2.5f, y - 1.1f}, new int[] {g1, g1, g2, g2});
-        poly(m, INK, x - 1.5f, y - 4.0f, x + 1.5f, y - 4.0f, x, y - 2.2f);
-        line(m, withAlpha(GOLD, 240), x - 3.1f, y + 1.7f, x + 3.1f, y + 1.7f, 0.7f);
-    }
-
-    private static void drumstick(Matrix4f m) {
-        float x = 0f, y = 0f;
-        line(m, BONE, x + 0.8f, y + 0.8f, x + 4.1f, y + 4.1f, 1.5f);
-        ellipse(m, BONE, x + 3.8f, y + 4.9f, 1.0f, 1.0f);
-        ellipse(m, BONE, x + 4.9f, y + 3.8f, 1.0f, 1.0f);
-        ellipse(m, argb(96, 44, 18, 255), x - 1.2f, y - 1.2f, 4.2f, 3.8f);
-        ellipse(m, argb(150, 74, 28, 255), x - 1.2f, y - 1.2f, 3.6f, 3.2f);
-        ellipse(m, argb(236, 148, 62, 255), x - 1.6f, y - 1.6f, 2.9f, 2.5f);
-        ellipse(m, argb(255, 196, 108, 255), x - 2.2f, y - 2.2f, 1.6f, 1.2f);
     }
 }

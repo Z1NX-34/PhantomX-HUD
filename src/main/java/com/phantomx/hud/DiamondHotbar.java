@@ -215,7 +215,7 @@ final class DiamondHotbar {
     private static void xp(GuiGraphics g, Font font, Player p, long now) {
         Matrix4f m = g.pose().last().pose();
         final int per = 7;
-        final float off = 7f, d0 = 7.5f, d1 = 66f, lg = 1.1f, wd = 3.4f, r2 = 0.70710678f;
+        final float off = 8.5f, d0 = 5f, d1 = 66f, lg = 1.1f, wd = 3.4f, r2 = 0.70710678f;
         float ax = -B - off, ay = 0f;
         float ls = (d1 - d0 - (per - 1) * lg) / per;
         float prog = PlayerBlock.clamp01(p.experienceProgress) * per * 2f;
@@ -251,13 +251,13 @@ final class DiamondHotbar {
         }
 
         // level badge at the apex
-        float bx = ax - 6.5f, hw = 8.4f;
+        float bx = ax - 3f, hw = 7f;
         poly(m, GOLD, roundedDiamond(bx, ay, hw + 1.2f, hw + 1.2f, 3.8f));
         poly(m, INK, roundedDiamond(bx, ay, hw, hw, 3.4f));
         poly(m, withAlpha(XP_TOP, 150), roundedDiamond(bx, ay, hw - 0.9f, hw - 0.9f, 3.1f));
         poly(m, argb(20, 44, 36, 255), roundedDiamond(bx, ay, hw - 1.7f, hw - 1.7f, 2.7f));
         String lvl = String.valueOf(Math.min(999, p.experienceLevel));
-        float ts = lvl.length() >= 3 ? 0.62f : lvl.length() == 2 ? 0.82f : 1f;
+        float ts = lvl.length() >= 3 ? 0.58f : lvl.length() == 2 ? 0.78f : 0.95f;
         g.pose().pushPose();
         g.pose().translate(bx, ay - 3.5f * ts, 0f);
         g.pose().scale(ts, ts, 1f);

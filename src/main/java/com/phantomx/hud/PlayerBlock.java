@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -167,95 +168,112 @@ final class PlayerBlock {
                 : p.hasEffect(MobEffects.POISON) ? argb(120, 156, 40, 255) : RED;
         int hpDark = p.hasEffect(MobEffects.WITHER) ? argb(30, 26, 28, 255) : p.hasEffect(MobEffects.POISON) ? argb(60, 84, 20, 255) : DRED;
         String hpText = Math.round(p.getHealth()) + "/" + Math.round(p.getMaxHealth());
-        bar(g, font, false, CY + HEALTH_Y, HEALTH_H, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
+        bar(g, font, CY + HEALTH_Y, HEALTH_H, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
 
         float[] st = ResourceSources.stamina();
         if (st != null) {
-            bar(g, font, false, CY + STAMINA_Y, STAMINA_H, STAMINA_LEN, clamp01(st[0] / st[1]), CREAM, argb(120, 112, 96, 255), -1f,
+            bar(g, font, CY + STAMINA_Y, STAMINA_H, STAMINA_LEN, clamp01(st[0] / st[1]), CREAM, argb(120, 112, 96, 255), -1f,
                     Math.round(st[0]) + "/" + Math.round(st[1]));
         }
         if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), st != null);
+        drawMount(g, font, p);
     }
 
     /**
-     * Absorption: a row of small gold slanted pips right beside the stamina bar, starting where it ends. At most eight
-     * pips (more absorption just makes each pip worth more); the last pip fills partially. The number follows the row.
+     * Absorption: a segmented gold bar with exactly the stamina bar's geometry (same top, same height, same frame and
+     * slant), right beside it, starting where the stamina bar ends. At most eight segments (more absorption just makes
+     * each segment worth more); the last one fills partially. The number follows the bar.
      */
     private static void absorption(GuiGraphics g, Font font, float ab, boolean hasStamina) {
         Matrix4f m = g.pose().last().pose();
-        float h = 3.8f, y0s = CY + STAMINA_Y;
-        float y0 = y0s + (STAMINA_H - h) / 2f, y1 = y0 + h;
+        float y0 = CY + STAMINA_Y, h = STAMINA_H, y1 = y0 + h;
         float unit = 2f * (float) Math.ceil(ab / 16f);
         int pips = Math.max(1, Math.min(8, (int) Math.ceil(ab / unit)));
-        float pw = 4.6f, gap = 1.2f, step = pw + gap;
-        float xa0;
-        if (hasStamina) {
-            float xr = left(false, y0s) + STAMINA_LEN;                // outermost x of the stamina bar at its top edge
-            xa0 = xr - (y0 - y0s) + 3.5f;
-        } else {
-            xa0 = left(false, y0) + h;
-        }
+        float ins = 1.1f, insX = ins * 1.45f, pw = 4.8f, gap = 1.0f, step = pw + gap;
+        float len = 2f * insX + pips * step - gap;
+        float start = hasStamina ? left(false, y0) + STAMINA_LEN + 6f : left(false, y0);
+        float xr = start + len;
+        frame(m, start, y0, h, xr);
         int top = argb(255, 226, 132, 255), bot = argb(196, 142, 54, 255);
-        float lastX = xa0;
         for (int i = 0; i < pips; i++) {
             float f = i == pips - 1 ? clamp01((ab - i * unit) / unit) : 1f;
             if (f <= 0.01f) continue;
-            float xa = xa0 + i * step, w = pw * f;
-            poly(m, withAlpha(INK, 215),
-                    xa - 0.7f, y0 - 0.7f, xa + w + 0.7f, y0 - 0.7f, xa + w - h + 0.7f, y1 + 0.7f, xa - h - 0.7f, y1 + 0.7f);
-            polyColors(m, 0f, new float[] {xa, y0, xa + w, y0, xa + w - h, y1, xa - h, y1}, new int[] {top, top, bot, bot});
-            line(m, withAlpha(WHITE, 120), xa + 0.2f, y0 + 0.35f, xa + w, y0 + 0.35f, 0.5f);
-            lastX = xa + w - h * 0.5f;
+            float sl = start + insX + i * step;
+            float[] q = stripPts(sl, y0, sl + pw * f, y0 + ins, y1 - ins, 0f);
+            polyColors(m, 0f, q, new int[] {top, top, bot, bot});
+            float[] hl = stripPts(sl, y0, sl + pw * f, y0 + ins, y0 + ins + 0.9f, 0f);
+            poly(m, withAlpha(WHITE, 110), hl);
         }
+        line(m, withAlpha(GOLD, 230), start, y0, xr, y0, 0.7f);
         String t = String.valueOf(Math.round(ab));
         float ts = 0.66f;
         g.pose().pushPose();
-        g.pose().translate(lastX + 4.6f, y0 + (h - 7f * ts) / 2f, 0f);
+        g.pose().translate(xr - h / 2f + 4f, y0 + (h - 7f * ts) / 2f, 0f);
         g.pose().scale(ts, ts, 1f);
         g.drawString(font, t, 0, 0, argb(255, 226, 140, 255), true);
         g.pose().popPose();
     }
 
-    /** Left boundary of a bar at height y: follows the crest edge plus a gap. */
+    /** Health of the mount you are riding (any living entity, vanilla or modded), a small bar above the refill diamonds. */
+    private static void drawMount(GuiGraphics g, Font font, Player p) {
+        if (!(p.getVehicle() instanceof LivingEntity mount)) return;
+        float max = mount.getMaxHealth();
+        if (max <= 0f) return;
+        float h = 5.4f, len = 104f;
+        float y0 = GaugeSlots.rowTop() - 3.6f - h;
+        float start = CX + R + 3f - Math.abs(y0 + h / 2f - CY) + 7.5f;
+        barAt(g, font, start, y0, h, len, clamp01(mount.getHealth() / max), argb(214, 140, 52, 255), argb(120, 70, 24, 255), -1f,
+                Math.round(mount.getHealth()) + "/" + Math.round(max));
+    }
+
+    /** Left boundary of a bar at height y: follows the crest's lower-right edge plus a gap. */
     private static float left(boolean upper, float y) {
         return edge(upper, y) + GAP;
     }
 
-    /** Right boundary runs parallel to the left one (same 45 degree slope). xr is the bar's outermost x (bottom for upper bars, top for lower). */
-    private static float right(boolean upper, float y0, float h, float xr, float y) {
-        return upper ? xr - h + (y - y0) : xr - (y - y0);
-    }
-
-    private static void strip(Matrix4f m, int color, boolean upper, float y0, float h, float ya, float yb, float xr, float insX) {
-        poly(m, color,
-                left(upper, ya) + insX, ya, right(upper, y0, h, xr, ya) - insX, ya,
-                right(upper, y0, h, xr, yb) - insX, yb, left(upper, yb) + insX, yb);
-    }
-
     /**
-     * One bar whose left end follows the crest edge (upper=true follows the top-right slope, false the bottom-right one)
-     * and whose right end follows the same slope. Text is drawn inside as current/max.
+     * Slanted strip shared by every bar (health, stamina, absorption, mount): every edge leans down-left at 45 degrees.
+     * 'start' is the left x at the bar's top edge y0 and 'xr' the right x there; ya..yb is the vertical range drawn.
      */
-    private static void bar(GuiGraphics g, Font font, boolean upper, float y0, float h, float length, float pct, int col, int colDark, float trail, String text) {
+    private static float[] stripPts(float start, float y0, float xr, float ya, float yb, float insX) {
+        return new float[] {
+            start - (ya - y0) + insX, ya, xr - (ya - y0) - insX, ya,
+            xr - (yb - y0) - insX, yb, start - (yb - y0) + insX, yb};
+    }
+
+    private static void strip(Matrix4f m, int color, float start, float y0, float xr, float ya, float yb, float insX) {
+        poly(m, color, stripPts(start, y0, xr, ya, yb, insX));
+    }
+
+    /** Gold frame + dark backing of a bar; returns nothing, the caller fills the inside. */
+    private static void frame(Matrix4f m, float start, float y0, float h, float xr) {
+        float y1 = y0 + h;
+        strip(m, withAlpha(GOLD, 210), start, y0, xr + 1.0f, y0 - 0.9f, y1 + 0.9f, -1.2f);
+        strip(m, withAlpha(INK, 248), start, y0, xr, y0, y1, 0f);
+    }
+
+    private static void bar(GuiGraphics g, Font font, float y0, float h, float length, float pct, int col, int colDark, float trail, String text) {
+        barAt(g, font, left(false, y0), y0, h, length, pct, col, colDark, trail, text);
+    }
+
+    /** One bar starting at x = start (at its top edge). Text is drawn inside as current/max. */
+    private static void barAt(GuiGraphics g, Font font, float start, float y0, float h, float length, float pct, int col, int colDark, float trail, String text) {
         Matrix4f m = g.pose().last().pose();
         float y1 = y0 + h;
-        float start = Math.max(left(upper, y0), left(upper, y1));
         float xr = start + length;
-        // frame, backing
-        strip(m, withAlpha(GOLD, 210), upper, y0, h, y0 - 0.9f, y1 + 0.9f, xr + 1.0f, -1.2f);
-        strip(m, withAlpha(INK, 248), upper, y0, h, y0, y1, xr, 0f);
+        frame(m, start, y0, h, xr);
         float ins = 1.1f, insX = ins * 1.45f;
         if (trail > pct) {
             float xt = start + length * clamp01(trail);
-            strip(m, withAlpha(BONE, 235), upper, y0, h, y0 + ins, y1 - ins, xt, insX);
+            strip(m, withAlpha(BONE, 235), start, y0, xt, y0 + ins, y1 - ins, insX);
         }
         if (pct > 0.002f) {
             float xf = start + length * clamp01(pct);
-            strip(m, col, upper, y0, h, y0 + ins, y1 - ins, xf, insX);
+            strip(m, col, start, y0, xf, y0 + ins, y1 - ins, insX);
             float ym = y0 + h * 0.5f;
-            strip(m, withAlpha(colDark, 205), upper, y0, h, ym, y1 - ins, xf, insX);
+            strip(m, withAlpha(colDark, 205), start, y0, xf, ym, y1 - ins, insX);
         }
-        line(m, withAlpha(GOLD, 230), left(upper, y0), y0, right(upper, y0, h, xr, y0), y0, 0.7f);
+        line(m, withAlpha(GOLD, 230), start, y0, xr, y0, 0.7f);
         // value text inside the bar
         float ts = Math.min(0.72f, (h - 1.5f) / 8f);
         float cxText = (start + xr) / 2f - h / 2f;
