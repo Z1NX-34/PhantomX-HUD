@@ -25,7 +25,8 @@ final class MountBar {
         float frac = PlayerBlock.clamp01(mount.getHealth() / max);
 
         g.pose().pushPose();
-        g.pose().translate(sw / 2f, sh - 29f - 4f, 0f);           // the jump / charge bar's top edge is at sh - 29
+        // the jump / charge bar's top edge is at sh - 29; a dragon's own flame meter (from sh - 35) lifts it higher
+        g.pose().translate(sw / 2f, sh - 29f - 4f - DragonBars.mountLift(mount) * scale, 0f);
         g.pose().scale(scale, scale, 1f);
         Matrix4f m = g.pose().last().pose();
         float y0 = -H, y1 = 0f, xl = -LEN / 2f + H / 2f, xr = xl + LEN;   // x at the bar's top edge; every edge leans down-left

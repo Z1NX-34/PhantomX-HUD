@@ -26,7 +26,7 @@ import org.joml.Matrix4f;
 final class EffectsStrip {
     private EffectsStrip() {}
 
-    private static final float HS = 10f, RH = 5.6f, RECT_W = 38f, GAP = 2.4f, PG = 2.2f;
+    private static final float HS = 10f, RH = 7.0f, RECT_W = 47f, GAP = 2.4f, PG = 2.2f;
     private static final int PER_COL = 7;
     private static final Map<MobEffect, Integer> MAX_DURATION = new HashMap<>();
 
@@ -80,12 +80,11 @@ final class EffectsStrip {
                 float pulse = 0.55f + 0.45f * (float) Math.sin(ms / 110.0);
                 tc = argb(255, Math.round(120 + 80 * pulse), Math.round(110 + 60 * pulse), 255);
             }
-            float ts = 0.72f;
-            g.pose().pushPose();
-            g.pose().translate(xl + sk + 3.4f, t + 1.0f, 0f);
-            g.pose().scale(ts, ts, 1f);
-            g.drawString(font, tm, 0, 0, tc, true);
-            g.pose().popPose();
+            if (infinite) {
+                bold(g, font, "\u221e", xl + sk + 4.2f, t - 1.0f, 1.6f, argb(255, 236, 190, 255));
+            } else {
+                bold(g, font, tm, xl + sk + 4.0f, t + 1.5f, 1.0f, tc);
+            }
 
             // draining bar along the bottom of the plate
             float frac = 1f;
@@ -94,7 +93,7 @@ final class EffectsStrip {
                 MAX_DURATION.put(e.getEffect(), max);
                 frac = Math.min(1f, e.getDuration() / (float) Math.max(1, max));
             }
-            float by0 = b - 2.7f, by1 = b - 1.4f;
+            float by0 = b - 3.0f, by1 = b - 1.5f;
             float bx0 = xl + sk / 2f + 3.4f, bx1 = xc - 2.4f;
             rect(m, withAlpha(INK, 230), bx0, by0, bx1, by1);
             if (frac > 0.005f) rect(m, withAlpha(accent, 235), bx0, by0, bx0 + (bx1 - bx0) * frac, by1);
@@ -114,17 +113,40 @@ final class EffectsStrip {
             diamondLine(m, GOLD, xd, yc, HS, HS, 1.1f);
             diamondLine(m, withAlpha(accent, 200), xd, yc, HS - 2.1f, HS - 2.1f, 0.5f);
 
-            // level as a plain number on the lower corner
+            // level: a small dark badge on the diamond's lower-right edge with a big outlined number
             if (e.getAmplifier() > 0) {
                 String lv = String.valueOf(e.getAmplifier() + 1);
-                float ls = 0.72f;
-                g.pose().pushPose();
-                g.pose().translate(xd + HS * 0.5f - font.width(lv) * ls * 0.5f + 1.2f, yc + HS * 0.18f, 0f);
-                g.pose().scale(ls, ls, 1f);
-                g.drawString(font, lv, 0, 0, GOLD, true);
-                g.pose().popPose();
+                float bx = xd + HS * 0.5f, by = yc + HS * 0.5f, bh = lv.length() > 1 ? 6.6f : 5.6f;
+                m = g.pose().last().pose();
+                diamondFill(m, withAlpha(INK, 252), bx, by, bh + 0.9f, bh + 0.9f);
+                diamondFill(m, withAlpha(argb(58, 40, 92, 255), 250), bx, by, bh - 0.4f, bh - 0.4f);
+                diamondLine(m, GOLD, bx, by, bh + 0.9f, bh + 0.9f, 0.9f);
+                float ls = 0.92f;
+                bold(g, font, lv, bx - font.width(lv) * ls / 2f + 0.1f, by - 7f * ls / 2f + 0.2f, ls, argb(255, 236, 160, 255));
             }
         }
+        g.pose().popPose();
+    }
+
+    /** Text with a dark outline and a doubled stroke so it stays readable on any background. */
+    private static void bold(GuiGraphics g, Font font, String text, float x, float y, float scale, int color) {
+        int dark = argb(8, 6, 16, 255);
+        float o = 0.9f / scale;
+        g.pose().pushPose();
+        g.pose().translate(x, y, 0f);
+        g.pose().scale(scale, scale, 1f);
+        float[][] offs = {{-o, 0}, {o, 0}, {0, -o}, {0, o}, {-o, -o}, {o, -o}, {-o, o}, {o, o}};
+        for (float[] d : offs) {
+            g.pose().pushPose();
+            g.pose().translate(d[0], d[1], 0f);
+            g.drawString(font, text, 0, 0, dark, false);
+            g.pose().popPose();
+        }
+        g.drawString(font, text, 0, 0, color, false);
+        g.pose().pushPose();
+        g.pose().translate(0.5f, 0f, 0f);
+        g.drawString(font, text, 0, 0, color, false);
+        g.pose().popPose();
         g.pose().popPose();
     }
 }

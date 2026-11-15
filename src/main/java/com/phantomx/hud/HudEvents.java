@@ -148,6 +148,18 @@ public final class HudEvents {
             }
         }
 
+        // Saint's Dragons' own ride health bar is drawn from a Post handler (no overlay id): block just its rectangle.
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void dragonBarsPost(RenderGuiOverlayEvent.Post e) {
+            if (!DragonBars.wanted()) return;
+            DragonBars.begin(e.getGuiGraphics(), e.getWindow().getGuiScaledWidth(), e.getWindow().getGuiScaledHeight());
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+        public static void dragonBarsPostEnd(RenderGuiOverlayEvent.Post e) {
+            DragonBars.end(e.getGuiGraphics());
+        }
+
         private static boolean matchesHideList(ResourceLocation id) {
             String full = id.toString();
             for (String pat : HudConfig.HIDE_OVERLAYS.get()) {
