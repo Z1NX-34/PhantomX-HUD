@@ -230,8 +230,10 @@ final class DiamondHotbar {
             poly(m, withAlpha(INK, 240), band(ax, ay, ux, uy, nx, ny, t0, t1, wd / 2f));
             float f = PlayerBlock.clamp01(prog - k);
             if (f <= 0.001f) continue;
-            float te = t0 + (t1 - t0) * f, h2 = wd / 2f - 0.4f;
-            float[] q = band(ax, ay, ux, uy, nx, ny, t0, te, h2);
+            // top arm fills from the apex outwards; bottom arm from its outer end towards the apex (one continuous line)
+            float ta = top ? t0 : t1 - (t1 - t0) * f, tb = top ? t0 + (t1 - t0) * f : t1;
+            float te = top ? tb : ta, h2 = wd / 2f - 0.4f;
+            float[] q = band(ax, ay, ux, uy, nx, ny, ta, tb, h2);
             polyColors(m, 0f, q, new int[] {XP_TOP, XP_TOP, XP_BOT, XP_BOT});
             float kk = Math.max(0f, 1f - Math.abs(k - wave) / 1.8f);
             if (kk > 0f) poly(m, withAlpha(WHITE, Math.round(70 * kk)), q);

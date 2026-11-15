@@ -101,11 +101,9 @@ final class PlayerBlock {
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
         RenderSystem.colorMask(false, false, false, false);
         try {
-            // the four regions outside the diamond (all convex): nothing of the model can leave the crest
+            // lower-left and lower-right regions outside the diamond (both convex); above the middle line nothing is masked
             polyZ(m, WHITE, Z, CX - B, CY, CX - r, CY, CX, CY + r, CX, CY + B, CX - B, CY + B);
             polyZ(m, WHITE, Z, CX + B, CY, CX + r, CY, CX, CY + r, CX, CY + B, CX + B, CY + B);
-            polyZ(m, WHITE, Z, CX - B, CY, CX - r, CY, CX, CY - r, CX, CY - B, CX - B, CY - B);
-            polyZ(m, WHITE, Z, CX + B, CY, CX + r, CY, CX, CY - r, CX, CY - B, CX + B, CY - B);
         } finally {
             RenderSystem.colorMask(true, true, true, true);
             RenderSystem.depthFunc(GL11.GL_LEQUAL);
@@ -116,7 +114,7 @@ final class PlayerBlock {
         try {
             float ax = blockTx + blockScale * CX, ay = blockTy + blockScale * CY, ar = blockScale * R;
             float scale = blockScale * 28f * 1.45f;               // same pixel size as the old 28-radius crest
-            float feetY = ay - ar * 0.66f + scale * 1.8f;         // head sits a little below the top vertex so it stays inside
+            float feetY = ay - ar * 1.0f + scale * 1.8f;          // head top reaches the top vertex height and may rise past the upper frame
             drawVanillaModel(g, acp, Math.round(ax), Math.round(feetY), Math.round(scale));
         } finally {
             g.pose().popPose();
@@ -171,28 +169,32 @@ final class PlayerBlock {
         String hpText = Math.round(p.getHealth()) + "/" + Math.round(p.getMaxHealth());
         bar(g, font, false, CY + HEALTH_Y, HEALTH_H, HEALTH_LEN, hp, hpCol, hpDark, trailHealth, hpText);
 
-        float bottom = CY + HEALTH_Y + HEALTH_H;
         float[] st = ResourceSources.stamina();
         if (st != null) {
             bar(g, font, false, CY + STAMINA_Y, STAMINA_H, STAMINA_LEN, clamp01(st[0] / st[1]), CREAM, argb(120, 112, 96, 255), -1f,
                     Math.round(st[0]) + "/" + Math.round(st[1]));
-            bottom = CY + STAMINA_Y + STAMINA_H;
         }
-        if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), bottom + 3.4f);
+        if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), st != null);
     }
 
     /**
-     * Absorption: no frame and no empty slots. A row of small gold slanted pips under the bars simply grows with the
-     * absorption amount (2 HP per pip, more per pip when it gets large); the last pip fills partially. The number sits
-     * at the end of the row.
+     * Absorption: a row of small gold slanted pips right beside the stamina bar, starting where it ends. At most eight
+     * pips (more absorption just makes each pip worth more); the last pip fills partially. The number follows the row.
      */
-    private static void absorption(GuiGraphics g, Font font, float ab, float y0) {
+    private static void absorption(GuiGraphics g, Font font, float ab, boolean hasStamina) {
         Matrix4f m = g.pose().last().pose();
-        float h = 3.8f, y1 = y0 + h;
-        float unit = 2f * (float) Math.ceil(ab / 40f);
-        int pips = Math.max(1, (int) Math.ceil(ab / unit));
-        float pw = 5.2f, gap = 1.3f, step = pw + gap;
-        float xa0 = left(false, y0) + h;
+        float h = 3.8f, y0s = CY + STAMINA_Y;
+        float y0 = y0s + (STAMINA_H - h) / 2f, y1 = y0 + h;
+        float unit = 2f * (float) Math.ceil(ab / 16f);
+        int pips = Math.max(1, Math.min(8, (int) Math.ceil(ab / unit)));
+        float pw = 4.6f, gap = 1.2f, step = pw + gap;
+        float xa0;
+        if (hasStamina) {
+            float xr = left(false, y0s) + STAMINA_LEN;                // outermost x of the stamina bar at its top edge
+            xa0 = xr - (y0 - y0s) + 3.5f;
+        } else {
+            xa0 = left(false, y0) + h;
+        }
         int top = argb(255, 226, 132, 255), bot = argb(196, 142, 54, 255);
         float lastX = xa0;
         for (int i = 0; i < pips; i++) {
@@ -208,7 +210,7 @@ final class PlayerBlock {
         String t = String.valueOf(Math.round(ab));
         float ts = 0.66f;
         g.pose().pushPose();
-        g.pose().translate(lastX + 5.2f, y0 + (h - 7f * ts) / 2f, 0f);
+        g.pose().translate(lastX + 4.6f, y0 + (h - 7f * ts) / 2f, 0f);
         g.pose().scale(ts, ts, 1f);
         g.drawString(font, t, 0, 0, argb(255, 226, 140, 255), true);
         g.pose().popPose();

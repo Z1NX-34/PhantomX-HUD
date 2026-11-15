@@ -18,7 +18,7 @@ final class EpicFightSkills {
     private static boolean failed, init;
     private static Method engineGet, enginePatch, patchGetSkill, containerEmpty, containerGetSkill, skillShouldDraw, skillDraw;
     private static Method managerValues;
-    private static Object slotManager;
+    private static Object slotManager, innateSlot, innateContainer;
     private static Field renderEngineF, battleUiF;
     private static Class<?> weaponInnateCls;
     private static Method slideM;
@@ -52,17 +52,32 @@ final class EpicFightSkills {
                 managerValues = slotManager.getClass().getMethod("universalValues");
                 weaponInnateCls = Class.forName("yesman.epicfight.skill.weaponinnate.WeaponInnateSkill");
                 slideM = bm.getMethod("getSlidingProgression");
+                try {
+                    innateSlot = Class.forName("yesman.epicfight.skill.SkillSlots").getField("WEAPON_INNATE").get(null);
+                } catch (Throwable t) {
+                    LOG.warn("WEAPON_INNATE slot lookup failed, using the skill class only: {}", t.toString());
+                }
                 init = true;
             }
             Object patch = enginePatch.invoke(engineGet.invoke(null));
             if (patch == null) return out;
             Collection<?> slots = (Collection<?>) managerValues.invoke(slotManager);
+            innateContainer = null;
             for (Object s : slots) {
                 Object c = patchGetSkill.invoke(patch, s);
                 if (c == null || (Boolean) containerEmpty.invoke(c)) continue;
                 Object sk = containerGetSkill.invoke(c);
-                if (sk == null || !(Boolean) skillShouldDraw.invoke(sk, c)) continue;
-                if (weaponInnateCls.isInstance(sk)) out.add(0, c); else out.add(c);
+                if (sk == null) continue;
+                // whatever sits in the weapon-innate slot IS the special move, even when the weapon's mod (e.g. Nightfall's
+                // Revenge) uses its own skill class or says shouldDraw = false
+                boolean innate = (innateSlot != null && s == innateSlot) || weaponInnateCls.isInstance(sk);
+                if (!innate && !(Boolean) skillShouldDraw.invoke(sk, c)) continue;
+                if (innate) {
+                    out.add(0, c);
+                    innateContainer = c;
+                } else {
+                    out.add(c);
+                }
                 if (out.size() >= 7) break;
             }
         } catch (Throwable t) {
@@ -79,7 +94,7 @@ final class EpicFightSkills {
         try {
             Object skill = containerGetSkill.invoke(container);
             Object battleUi = battleUiF.get(renderEngineF.get(engineGet.invoke(null)));
-            float native_ = weaponInnateCls.isInstance(skill) ? 32f : 24f;
+            float native_ = isInnate(container) ? 32f : 24f;
             float s = size / native_;
             g.pose().pushPose();
             g.pose().translate(cx - size / 2f, cy - size / 2f, 0f);
@@ -101,7 +116,7 @@ final class EpicFightSkills {
     static boolean isInnate(Object container) {
         if (failed || !init) return false;
         try {
-            return weaponInnateCls.isInstance(containerGetSkill.invoke(container));
+            return container == innateContainer || weaponInnateCls.isInstance(containerGetSkill.invoke(container));
         } catch (Throwable t) {
             return false;
         }
