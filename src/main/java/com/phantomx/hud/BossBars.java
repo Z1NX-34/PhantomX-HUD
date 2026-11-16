@@ -68,6 +68,10 @@ final class BossBars {
         return out;
     }
 
+    static int count() {
+        return eventsFailed ? 0 : events(Minecraft.getInstance()).size();
+    }
+
     static void renderAll(GuiGraphics g, int sw, int sh, float scale) {
         Minecraft mc = Minecraft.getInstance();
         List<LerpingBossEvent> list = events(mc);

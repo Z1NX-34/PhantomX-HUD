@@ -31,6 +31,11 @@ public final class HudEvents {
         private ModBus() {}
 
         @SubscribeEvent
+        public static void keys(net.minecraftforge.client.event.RegisterKeyMappingsEvent e) {
+            e.register(Layout.KEY);
+        }
+
+        @SubscribeEvent
         public static void register(RegisterGuiOverlaysEvent e) {
             e.registerAboveAll("phantomx_hud", (gui, g, partial, w, h) -> {
                 try {
@@ -53,6 +58,32 @@ public final class HudEvents {
             new ResourceLocation("souls_combat_hud", "equipment_hud"),
             new ResourceLocation("souls_combat_hud", "souls_bossbar"),
         };
+        @SubscribeEvent
+        public static void layoutKey(net.minecraftforge.event.TickEvent.ClientTickEvent e) {
+            if (e.phase != net.minecraftforge.event.TickEvent.Phase.END) return;
+            Minecraft mc = Minecraft.getInstance();
+            while (Layout.KEY.consumeClick()) {
+                if (mc.screen == null && mc.player != null) Layout.openRequested = true;
+            }
+            if (Layout.openRequested && mc.screen == null && mc.player != null) {
+                Layout.openRequested = false;
+                mc.setScreen(new LayoutScreen());
+            }
+        }
+
+        @SubscribeEvent
+        public static void commands(net.minecraftforge.client.event.RegisterClientCommandsEvent e) {
+            e.getDispatcher().register(net.minecraft.commands.Commands.literal("phantomxhud")
+                    .then(net.minecraft.commands.Commands.literal("edit").executes(c -> {
+                        Layout.openRequested = true;
+                        return 1;
+                    }))
+                    .then(net.minecraft.commands.Commands.literal("reset").executes(c -> {
+                        Layout.resetAll();
+                        return 1;
+                    })));
+        }
+
         private static final ResourceLocation ADV_COMPASS = new ResourceLocation("advancedcompass", "compass");
 
         @SubscribeEvent
@@ -208,13 +239,15 @@ public final class HudEvents {
         float scale = HudConfig.SCALE.get().floatValue();
         logOverlaysOnce();
 
-        if (HudConfig.SHOW_COMPASS.get()) CompassBar.render(g, mc.font, p, sw, scale, partial);
-        PlayerBlock.render(g, p, sw, sh, scale, partial);
-        if (HudConfig.SHOW_SKILLS.get()) SkillRow.render(g, p, sh, scale, partial);
-        if (HudConfig.SHOW_HOTBAR.get() || HudConfig.SHOW_XP.get()) DiamondHotbar.render(g, mc.font, p, sw, sh, scale, partial);
-        if (HudConfig.SHOW_MOUNT.get()) MountBar.render(g, mc.font, p, sw, sh, scale);
-        if (HudConfig.SHOW_EFFECTS.get()) EffectsStrip.render(g, mc.font, p, sw, sh, scale);
-        if (HudConfig.SHOW_BOSS.get()) BossBars.renderAll(g, sw, sh, scale);
+        final Player fp = p;
+        final float fs = scale;
+        if (HudConfig.SHOW_COMPASS.get()) Layout.draw(g, Layout.Mod.COMPASS, sw, sh, () -> CompassBar.render(g, mc.font, fp, sw, fs, partial));
+        Layout.draw(g, Layout.Mod.PLAYER, sw, sh, () -> PlayerBlock.render(g, fp, sw, sh, fs, partial));
+        if (HudConfig.SHOW_SKILLS.get()) Layout.draw(g, Layout.Mod.SKILLS, sw, sh, () -> SkillRow.render(g, fp, sh, fs, partial));
+        if (HudConfig.SHOW_HOTBAR.get() || HudConfig.SHOW_XP.get()) Layout.draw(g, Layout.Mod.ITEMS, sw, sh, () -> DiamondHotbar.render(g, mc.font, fp, sw, sh, fs, partial));
+        if (HudConfig.SHOW_MOUNT.get()) Layout.draw(g, Layout.Mod.MOUNT, sw, sh, () -> MountBar.render(g, mc.font, fp, sw, sh, fs));
+        if (HudConfig.SHOW_EFFECTS.get()) Layout.draw(g, Layout.Mod.EFFECTS, sw, sh, () -> EffectsStrip.render(g, mc.font, fp, sw, sh, fs));
+        if (HudConfig.SHOW_BOSS.get()) Layout.draw(g, Layout.Mod.BOSS, sw, sh, () -> BossBars.renderAll(g, sw, sh, fs));
     }
 
     private static boolean logged;

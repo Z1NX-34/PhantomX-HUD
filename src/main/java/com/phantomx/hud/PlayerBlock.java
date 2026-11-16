@@ -36,12 +36,14 @@ final class PlayerBlock {
         float dt = lastNanos == 0 ? 0f : Math.min(0.1f, (now - lastNanos) / 1.0e9f);
         lastNanos = now;
 
-        blockTx = HudConfig.MARGIN_X.get();
-        blockTy = sh - HudConfig.MARGIN_Y.get();
-        blockScale = scale;
+        float tx = HudConfig.MARGIN_X.get(), ty = sh - HudConfig.MARGIN_Y.get();
+        // the model is drawn in absolute screen coordinates, so it needs the layout transform applied by hand
+        blockTx = Layout.mapX(Layout.Mod.PLAYER, sw, sh, tx);
+        blockTy = Layout.mapY(Layout.Mod.PLAYER, sw, sh, ty);
+        blockScale = scale * Layout.scaleOf(Layout.Mod.PLAYER);
 
         g.pose().pushPose();
-        g.pose().translate(blockTx, blockTy, 0);
+        g.pose().translate(tx, ty, 0);
         g.pose().scale(scale, scale, 1f);
         drawCrest(g, p);
         drawBars(g, font, p, dt);

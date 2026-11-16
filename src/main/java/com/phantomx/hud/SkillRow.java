@@ -17,6 +17,17 @@ final class SkillRow {
 
     private static final float HS = 12f, GAP = 1.5f;
 
+    /** Number of non-innate skills currently shown (the innate one lives in the crest block). */
+    static int count() {
+        try {
+            int n = 0;
+            for (Object c : EpicFightSkills.visible()) if (!EpicFightSkills.isInnate(c)) n++;
+            return n;
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
+
     static void render(GuiGraphics g, Player p, int sh, float scale, float partial) {
         List<Object> all = EpicFightSkills.visible();
         if (all.isEmpty()) return;

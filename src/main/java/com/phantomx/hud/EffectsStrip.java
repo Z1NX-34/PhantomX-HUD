@@ -80,11 +80,18 @@ final class EffectsStrip {
                 float pulse = 0.55f + 0.45f * (float) Math.sin(ms / 110.0);
                 tc = argb(255, Math.round(120 + 80 * pulse), Math.round(110 + 60 * pulse), 255);
             }
+            // level as a roman numeral right next to the icon, on the plate (white, no background, never over the icon)
+            String lv = e.getAmplifier() > 0 ? roman(e.getAmplifier() + 1) : null;
+            float lvs = 0.95f, lvw = lv == null ? 0f : font.width(lv) * lvs;
+            float numRight = xd - 9.6f, numLeft = numRight - lvw;
+            float textRoom = (lv == null ? xc - 3f : numLeft - 3.5f) - (xl + sk + 4.0f);
             if (infinite) {
                 bold(g, font, "\u221e", xl + sk + 4.2f, t - 1.0f, 1.6f, WHITE);
             } else {
-                bold(g, font, tm, xl + sk + 4.0f, t + 1.5f, 1.0f, tc);
+                float tsc = Math.max(0.7f, Math.min(1.0f, textRoom / Math.max(1f, font.width(tm))));
+                bold(g, font, tm, xl + sk + 4.0f, t + 1.5f + (1.0f - tsc) * 2f, tsc, tc);
             }
+            if (lv != null) bold(g, font, lv, numLeft, yc - 7f * lvs / 2f - 0.9f, lvs, WHITE);
 
             // draining bar along the bottom of the plate
             float frac = 1f;
@@ -113,16 +120,6 @@ final class EffectsStrip {
             diamondLine(m, GOLD, xd, yc, HS, HS, 1.1f);
             diamondLine(m, withAlpha(accent, 200), xd, yc, HS - 2.1f, HS - 2.1f, 0.5f);
 
-            // level: roman numeral in white on a small dark slanted plate on the diamond's lower-right edge
-            if (e.getAmplifier() > 0) {
-                String lv = roman(e.getAmplifier() + 1);
-                float ls = 0.9f, tw = font.width(lv) * ls, ph = 4.6f;
-                float xr2 = xd + HS + 0.5f, cy2 = yc + HS * 0.58f, xl2 = xr2 - tw - 5.2f;
-                m = g.pose().last().pose();
-                poly(m, withAlpha(GOLD, 235), xl2 - 0.9f + 1.4f, cy2 - ph - 0.9f, xr2 + 0.9f, cy2 - ph - 0.9f, xr2 - 1.4f + 0.9f, cy2 + ph + 0.9f, xl2 - 0.9f, cy2 + ph + 0.9f);
-                poly(m, withAlpha(INK, 252), xl2 + 1.4f, cy2 - ph, xr2, cy2 - ph, xr2 - 1.4f, cy2 + ph, xl2, cy2 + ph);
-                bold(g, font, lv, xl2 + 2.8f, cy2 - 7f * ls / 2f + 0.3f, ls, WHITE);
-            }
         }
         g.pose().popPose();
     }
