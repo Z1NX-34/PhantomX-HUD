@@ -81,7 +81,7 @@ final class EffectsStrip {
                 tc = argb(255, Math.round(120 + 80 * pulse), Math.round(110 + 60 * pulse), 255);
             }
             if (infinite) {
-                bold(g, font, "\u221e", xl + sk + 4.2f, t - 1.0f, 1.6f, argb(255, 236, 190, 255));
+                bold(g, font, "\u221e", xl + sk + 4.2f, t - 1.0f, 1.6f, WHITE);
             } else {
                 bold(g, font, tm, xl + sk + 4.0f, t + 1.5f, 1.0f, tc);
             }
@@ -113,16 +113,15 @@ final class EffectsStrip {
             diamondLine(m, GOLD, xd, yc, HS, HS, 1.1f);
             diamondLine(m, withAlpha(accent, 200), xd, yc, HS - 2.1f, HS - 2.1f, 0.5f);
 
-            // level: a small dark badge on the diamond's lower-right edge with a big outlined number
+            // level: roman numeral in white on a small dark slanted plate on the diamond's lower-right edge
             if (e.getAmplifier() > 0) {
-                String lv = String.valueOf(e.getAmplifier() + 1);
-                float bx = xd + HS * 0.5f, by = yc + HS * 0.5f, bh = lv.length() > 1 ? 6.6f : 5.6f;
+                String lv = roman(e.getAmplifier() + 1);
+                float ls = 0.9f, tw = font.width(lv) * ls, ph = 4.6f;
+                float xr2 = xd + HS + 0.5f, cy2 = yc + HS * 0.58f, xl2 = xr2 - tw - 5.2f;
                 m = g.pose().last().pose();
-                diamondFill(m, withAlpha(INK, 252), bx, by, bh + 0.9f, bh + 0.9f);
-                diamondFill(m, withAlpha(argb(58, 40, 92, 255), 250), bx, by, bh - 0.4f, bh - 0.4f);
-                diamondLine(m, GOLD, bx, by, bh + 0.9f, bh + 0.9f, 0.9f);
-                float ls = 0.92f;
-                bold(g, font, lv, bx - font.width(lv) * ls / 2f + 0.1f, by - 7f * ls / 2f + 0.2f, ls, argb(255, 236, 160, 255));
+                poly(m, withAlpha(GOLD, 235), xl2 - 0.9f + 1.4f, cy2 - ph - 0.9f, xr2 + 0.9f, cy2 - ph - 0.9f, xr2 - 1.4f + 0.9f, cy2 + ph + 0.9f, xl2 - 0.9f, cy2 + ph + 0.9f);
+                poly(m, withAlpha(INK, 252), xl2 + 1.4f, cy2 - ph, xr2, cy2 - ph, xr2 - 1.4f, cy2 + ph, xl2, cy2 + ph);
+                bold(g, font, lv, xl2 + 2.8f, cy2 - 7f * ls / 2f + 0.3f, ls, WHITE);
             }
         }
         g.pose().popPose();
@@ -148,5 +147,19 @@ final class EffectsStrip {
         g.drawString(font, text, 0, 0, color, false);
         g.pose().popPose();
         g.pose().popPose();
+    }
+
+    private static String roman(int n) {
+        if (n <= 0 || n >= 40) return String.valueOf(n);
+        String[] t = {"X", "IX", "V", "IV", "I"};
+        int[] v = {10, 9, 5, 4, 1};
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < v.length; i++) {
+            while (n >= v[i]) {
+                sb.append(t[i]);
+                n -= v[i];
+            }
+        }
+        return sb.toString();
     }
 }
