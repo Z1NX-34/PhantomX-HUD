@@ -24,6 +24,8 @@ final class PlayerBlock {
 
     /** Crest centre relative to the block origin (bottom-left anchor). */
     static final float CX = 46f, CY = -(R + 14f);
+    /** The small skill diamonds sit under the crest, right of the special slot (local coordinates of the block). */
+    static final float SKILL_X = 60f, SKILL_CY = -5f;
 
     private static float blockTx, blockTy, blockScale = 1f;
     private static float trailHealth = -1f;
@@ -159,6 +161,7 @@ final class PlayerBlock {
 
     private static final float HEALTH_Y = 3f;                                       // relative to the crest centre
     private static final float STAMINA_Y = HEALTH_Y + HEALTH_H + 2.9f;               // frames leave a clear 1px line between them
+    private static final float MANA_Y = STAMINA_Y + STAMINA_H + 2.9f, MANA_H = 6f;
 
     private static void drawBars(GuiGraphics g, Font font, Player p, float dt) {
         float hp = clamp01(p.getHealth() / Math.max(1f, p.getMaxHealth()));
@@ -175,6 +178,13 @@ final class PlayerBlock {
         if (st != null) {
             bar(g, font, CY + STAMINA_Y, STAMINA_H, STAMINA_LEN, clamp01(st[0] / st[1]), CREAM, argb(120, 112, 96, 255), -1f,
                     Math.round(st[0]) + "/" + Math.round(st[1]));
+        }
+        if (HudConfig.SHOW_MANA_BAR.get()) {
+            float[] mn = ResourceSources.mana();
+            if (mn != null) {
+                bar(g, font, CY + MANA_Y, MANA_H, STAMINA_LEN, clamp01(mn[0] / mn[1]), argb(92, 154, 255, 255), argb(36, 74, 176, 255), -1f,
+                        Math.round(mn[0]) + "/" + Math.round(mn[1]));
+            }
         }
         if (p.getAbsorptionAmount() > 0.05f) absorption(g, font, p.getAbsorptionAmount(), st != null);
     }

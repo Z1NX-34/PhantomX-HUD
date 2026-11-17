@@ -15,7 +15,7 @@ import org.joml.Matrix4f;
 final class SkillRow {
     private SkillRow() {}
 
-    private static final float HS = 12f, GAP = 1.5f;
+    private static final float HS = 6f, GAP = 1.2f;
 
     /** Number of non-innate skills currently shown (the innate one lives in the crest block). */
     static int count() {
@@ -35,9 +35,8 @@ final class SkillRow {
         for (Object c : all) if (!EpicFightSkills.isInnate(c)) skills.add(c);
         if (skills.isEmpty()) return;
 
-        float crestTop = PlayerBlock.crestTopScreenY(sh, scale);
-        float left = HudConfig.MARGIN_X.get() + scale * (PlayerBlock.CX + 4f);
-        float cy = crestTop - HudConfig.SKILLS_Y.get() * scale - HS * scale;
+        float left = HudConfig.MARGIN_X.get() + scale * PlayerBlock.SKILL_X;
+        float cy = (sh - HudConfig.MARGIN_Y.get()) + scale * PlayerBlock.SKILL_CY;
 
         g.pose().pushPose();
         g.pose().translate(left, cy, 0);
@@ -47,16 +46,16 @@ final class SkillRow {
             float bx = x + HS;
             Matrix4f m = g.pose().last().pose();
             diamondFill(m, withAlpha(INK, 238), bx, 0f, HS, HS);
-            diamondFill(m, withAlpha(argb(36, 30, 62, 255), 200), bx, 0f, HS - 2.2f, HS - 2.2f);
+            diamondFill(m, withAlpha(argb(36, 30, 62, 255), 200), bx, 0f, HS - 1.4f, HS - 1.4f);
 
-            float hm = HS - 1.3f;
+            float hm = HS - 0.9f;
             beginDiamondClip(g, bx, 0f, hm, HS + 18f);
             EpicFightSkills.draw(g, c, bx, 0f, hm * 1.5f, partial);
             endDiamondClip(g);
 
             m = g.pose().last().pose();
-            diamondLine(m, GOLD, bx, 0f, HS, HS, 1.1f);
-            diamondLine(m, withAlpha(PURP, 190), bx, 0f, HS - 2.6f, HS - 2.6f, 0.5f);
+            diamondLine(m, GOLD, bx, 0f, HS, HS, 0.9f);
+            diamondLine(m, withAlpha(PURP, 190), bx, 0f, HS - 1.7f, HS - 1.7f, 0.4f);
             x += HS * 2f + GAP;
         }
         g.pose().popPose();

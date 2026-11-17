@@ -81,7 +81,16 @@ public final class HudEvents {
                     .then(net.minecraft.commands.Commands.literal("reset").executes(c -> {
                         Layout.resetAll();
                         return 1;
-                    })));
+                    }))
+                    .then(net.minecraft.commands.Commands.literal("preset")
+                            .then(net.minecraft.commands.Commands.literal("default").executes(c -> {
+                                Layout.setItemsStyle(Layout.ItemsStyle.CLUSTER);
+                                return 1;
+                            }))
+                            .then(net.minecraft.commands.Commands.literal("symmetric").executes(c -> {
+                                Layout.setItemsStyle(Layout.ItemsStyle.ROW);
+                                return 1;
+                            }))));
         }
 
         private static final ResourceLocation ADV_COMPASS = new ResourceLocation("advancedcompass", "compass");
@@ -226,7 +235,7 @@ public final class HudEvents {
         @SubscribeEvent
         public static void chat(CustomizeGuiOverlayEvent.Chat e) {
             if (!HudConfig.ENABLED.get() || !HudConfig.MOVE_CHAT.get()) return;
-            float scale = HudConfig.SCALE.get().floatValue();
+            float scale = HudConfig.scale();
             e.setPosX(e.getPosX() + Math.round(HudConfig.CHAT_SHIFT_X.get() * scale));
             e.setPosY(e.getPosY() - Math.round(HudConfig.CHAT_SHIFT_Y.get() * scale));
         }
@@ -236,7 +245,7 @@ public final class HudEvents {
         Minecraft mc = Minecraft.getInstance();
         Player p = mc.player;
         if (p == null || mc.options.hideGui || p.isSpectator()) return;
-        float scale = HudConfig.SCALE.get().floatValue();
+        float scale = HudConfig.scale();
         logOverlaysOnce();
 
         final Player fp = p;

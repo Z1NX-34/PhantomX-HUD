@@ -6,7 +6,7 @@ public final class HudConfig {
     public static final ForgeConfigSpec SPEC;
     public static final ForgeConfigSpec.BooleanValue ENABLED, HIDE_OTHER_HUDS;
     public static final ForgeConfigSpec.BooleanValue SHOW_CHIPS, SHOW_XP, SHOW_EFFECTS, SHOW_SKILLS, SHOW_BOSS, SHOW_COMPASS;
-    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS, COMPASS_DEATHS, SHOW_MOUNT, MOVE_CHAT, AUTO_HIDE_BOSS, BUILTIN_HIDE, SHOW_HOTBAR;
+    public static final ForgeConfigSpec.BooleanValue COMPASS_MARKERS, COMPASS_DEATHS, SHOW_MOUNT, MOVE_CHAT, AUTO_HIDE_BOSS, BUILTIN_HIDE, SHOW_HOTBAR, SHOW_MANA_BAR;
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDE_OVERLAYS;
     public static final ForgeConfigSpec.IntValue CHAT_SHIFT_X, CHAT_SHIFT_Y, ITEM_NAME_RAISE;
     public static final ForgeConfigSpec.DoubleValue SCALE;
@@ -19,12 +19,13 @@ public final class HudConfig {
         b.push("hud");
         ENABLED = b.comment("Master switch. false = PhantomX HUD draws nothing and the normal HUD comes back.").define("enabled", true);
         HIDE_OTHER_HUDS = b.comment("Also hide Souls Combat HUD's player gauge, XP, skill, equipment and boss overlays (only matters if that mod is installed).").define("hide_souls_combat_hud_overlays", true);
-        SCALE = b.comment("Size multiplier.").defineInRange("scale", 1.0, 0.5, 2.5);
+        SCALE = b.comment("Size multiplier (1.0 = default, which is already 10% smaller than the original sizes).").defineInRange("scale", 1.0, 0.5, 2.5);
         b.pop();
         b.push("player");
         MARGIN_X = b.comment("Player block distance from the left edge (GUI pixels).").defineInRange("margin_x", 10, 0, 400);
         MARGIN_Y = b.comment("Player block distance from the bottom edge (GUI pixels).").defineInRange("margin_y", 6, 0, 400);
         SHOW_CHIPS = b.comment("The three refill diamonds (mana, armor, hunger) above the health bar.").define("show_armor_food", true);
+        SHOW_MANA_BAR = b.comment("Mana bar (Iron's Spells) under the stamina bar.").define("show_mana_bar", true);
         SHOW_MOUNT = b.comment("Health bar of the mount you ride (centre, above the jump / charge bar). Also hides the vanilla / modded mount health overlay.").define("show_mount_bar", true);
         b.pop();
         b.push("xp");
@@ -67,6 +68,13 @@ public final class HudConfig {
         ITEM_NAME_RAISE = b.comment("How far the held-item name moves up (GUI pixels).").defineInRange("item_name_raise", 0, 0, 100);
         b.pop();
         SPEC = b.build();
+    }
+
+    /** Default look is 10% smaller than the original sizes; the config scale multiplies on top of that. */
+    static final float BASE_SCALE = 0.9f;
+
+    static float scale() {
+        return SCALE.get().floatValue() * BASE_SCALE;
     }
 
     private HudConfig() {}

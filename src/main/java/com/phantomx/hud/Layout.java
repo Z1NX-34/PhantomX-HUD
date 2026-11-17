@@ -43,6 +43,36 @@ final class Layout {
         }
     }
 
+    /** How the item module is arranged: the original diamond cluster, or the symmetric row (big slot far right, clumps to its left). */
+    enum ItemsStyle {
+        CLUSTER("Default"), ROW("Symmetric");
+
+        final String label;
+
+        ItemsStyle(String label) {
+            this.label = label;
+        }
+
+        ItemsStyle next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
+    private static ItemsStyle itemsStyle = ItemsStyle.CLUSTER;
+
+    static ItemsStyle itemsStyle() {
+        if (!loaded) load();
+        return itemsStyle;
+    }
+
+    /** Switches the item module arrangement and puts that module back at its anchor. */
+    static void setItemsStyle(ItemsStyle st) {
+        if (!loaded) load();
+        itemsStyle = st;
+        reset(Mod.ITEMS);
+        save();
+    }
+
     static final class T {
         float dx, dy, s = 1f;
 
@@ -76,6 +106,13 @@ final class Layout {
             Path p = file();
             if (!Files.exists(p)) return;
             JsonObject root = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
+            if (root.has("itemsStyle")) {
+                try {
+                    itemsStyle = ItemsStyle.valueOf(root.get("itemsStyle").getAsString());
+                } catch (IllegalArgumentException ignored) {
+                    itemsStyle = ItemsStyle.CLUSTER;
+                }
+            }
             JsonObject mods = root.getAsJsonObject("modules");
             if (mods == null) return;
             for (Mod m : Mod.values()) {
@@ -96,6 +133,7 @@ final class Layout {
         try {
             JsonObject root = new JsonObject();
             root.addProperty("version", 1);
+            root.addProperty("itemsStyle", itemsStyle.name());
             JsonObject mods = new JsonObject();
             for (Mod m : Mod.values()) {
                 T t = get(m);
@@ -158,20 +196,23 @@ final class Layout {
     private static final float ITEMS_EXT_R = 3f * 21f + 2f * 1.6f, ITEMS_EXT_B = 21f + 1.6f + 21f + 6.5f;
 
     static Frame frame(Mod m, int sw, int sh) {
-        float s = HudConfig.SCALE.get().floatValue();
+        float s = HudConfig.scale();
         Player p = Minecraft.getInstance().player;
         switch (m) {
             case PLAYER:
                 return new Frame(HudConfig.MARGIN_X.get(), sh - HudConfig.MARGIN_Y.get(), s, -6f, -84f, 226f, 6f);
             case SKILLS: {
-                float crestTop = PlayerBlock.crestTopScreenY(sh, s);
-                float left = HudConfig.MARGIN_X.get() + s * (PlayerBlock.CX + 4f);
-                float cy = crestTop - HudConfig.SKILLS_Y.get() * s - 12f * s;
+                float left = HudConfig.MARGIN_X.get() + s * PlayerBlock.SKILL_X;
+                float cy = (sh - HudConfig.MARGIN_Y.get()) + s * PlayerBlock.SKILL_CY;
                 int n = Math.max(3, SkillRow.count());
-                return new Frame(left, cy, s, -1f, -13f, n * 25.5f, 13f);
+                return new Frame(left, cy, s, -1f, -7.5f, n * 13.2f, 7.5f);
             }
             case ITEMS: {
                 float ms = s * HudConfig.MODULE_SCALE.get().floatValue();
+                if (itemsStyle() == ItemsStyle.ROW) {
+                    float[] c = DiamondHotbar.rowCenter(sw, sh, s);
+                    return new Frame(c[0], c[1], ms, -171f, -28f, 25f, 38f);
+                }
                 return new Frame(sw - ms * HudConfig.MODULE_MARGIN_X.get(), sh - ms * HudConfig.MODULE_MARGIN_Y.get(), ms,
                         -(ITEMS_EXT_R + 42f), -(ITEMS_EXT_B + 54f), 2f, 2f);
             }
@@ -183,7 +224,7 @@ final class Layout {
             }
             case COMPASS: {
                 float half = HudConfig.COMPASS_WIDTH.get() / 2f + 6f;
-                return new Frame(sw / 2f, 5f, s, -half, -5f, half, 22f);
+                return new Frame(sw / 2f, 5f, s, -half - 20f, -6f, half + 20f, 26f);
             }
             case BOSS: {
                 int k = Math.max(1, Math.min(BossBars.count(), HudConfig.BOSS_MAX.get()));

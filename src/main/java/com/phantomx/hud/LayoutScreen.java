@@ -42,6 +42,11 @@ final class LayoutScreen extends Screen {
             sel = null;
         }).bounds(width / 2 - 84, height / 2 + 8, 80, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose()).bounds(width / 2 + 4, height / 2 + 8, 80, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Preset: " + Layout.itemsStyle().label), b -> {
+            Layout.setItemsStyle(Layout.itemsStyle().next());
+            b.setMessage(Component.literal("Preset: " + Layout.itemsStyle().label));
+            sel = null;
+        }).bounds(width / 2 - 84, height / 2 + 32, 168, 20).build());
     }
 
     @Override
