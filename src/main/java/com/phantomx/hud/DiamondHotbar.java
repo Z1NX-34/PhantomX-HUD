@@ -26,10 +26,18 @@ final class DiamondHotbar {
     private static int lastSel = -1;
     private static long changeAt;
 
-    /** Centre of the big slot in the symmetric row: the mirror image of the player crest's centre. */
+    /** Centre of the big slot in the modular row: the mirror image of the player crest's centre. */
     static float[] rowCenter(int sw, int sh, float scale) {
         return new float[] {sw - (HudConfig.MARGIN_X.get() + scale * PlayerBlock.CX), (sh - HudConfig.MARGIN_Y.get()) + scale * PlayerBlock.CY};
     }
+
+    /** Half-diagonal of the big slot in the modular row, in module units: exactly the crest's size on screen. */
+    static float rowMainHalf() {
+        return PlayerBlock.R / HudConfig.MODULE_SCALE.get().floatValue();
+    }
+
+    /** Tip-to-tip gap between the big slot and the clump next to it (room for the XP ring). */
+    static final float ROW_GAP = 9.5f;
 
     static void render(GuiGraphics g, Font font, Player p, int sw, int sh, float scale, float partial) {
         float ms = scale * HudConfig.MODULE_SCALE.get().floatValue();
@@ -56,19 +64,25 @@ final class DiamondHotbar {
         g.pose().scale(ms, ms, 1f);
         if (HudConfig.SHOW_HOTBAR.get()) {
             if (row) {
-                float st = 2f * B + 2f * GP;
-                clump(g, font, p, -st, 0f, partial, sel, 0);
-                clump(g, font, p, -2f * st, 0f, partial, sel, 4);
-                clump(g, font, p, -3f * st, 0f, partial, sel, 8);
+                // slot 1 at the far left, numbers rise to the right, the selected item is the big slot at the very right
+                float rm = rowMainHalf(), step = 2f * B + 2f * GP;
+                float c3 = -(rm + B + ROW_GAP), c2 = c3 - step, c1 = c2 - step;
+                clump(g, font, p, c1, 0f, partial, sel, 0, true);
+                clump(g, font, p, c2, 0f, partial, sel, 4, true);
+                clump(g, font, p, c3, 0f, partial, sel, 8, true);
+                g.pose().pushPose();
+                g.pose().scale(rm / B, rm / B, 1f);
+                mainDiamond(g, font, p, now);
+                g.pose().popPose();
             } else {
-                clump(g, font, p, AA, -AA, partial, sel, 0);
-                clump(g, font, p, 2f * B + 2f * GP, 0f, partial, sel, 4);
-                clump(g, font, p, AA, AA, partial, sel, 8);
+                clump(g, font, p, AA, -AA, partial, sel, 0, false);
+                clump(g, font, p, 2f * B + 2f * GP, 0f, partial, sel, 4, false);
+                clump(g, font, p, AA, AA, partial, sel, 8, false);
+                mainDiamond(g, font, p, now);
             }
-            mainDiamond(g, font, p, now);
         }
         if (HudConfig.SHOW_XP.get()) {
-            if (row) xpBar(g, font, p, now);
+            if (row) xpRing(g, font, p, now, rowMainHalf());
             else xp(g, font, p, now);
         }
         g.pose().popPose();
@@ -111,9 +125,10 @@ final class DiamondHotbar {
 
     // ------------------------------------------------------------------------------------------ clumps and slots
 
-    private static void clump(GuiGraphics g, Font font, Player p, float cx, float cy, float partial, int sel, int first) {
+    private static void clump(GuiGraphics g, Font font, Player p, float cx, float cy, float partial, int sel, int first, boolean leftToRight) {
         float s = HS + 1.2f;
-        float[][] pos = {{0f, -s}, {s, 0f}, {0f, s}, {-s, 0f}};
+        float[][] pos = leftToRight ? new float[][] {{-s, 0f}, {0f, -s}, {0f, s}, {s, 0f}}      // modular row: left, top, bottom, right
+                : new float[][] {{0f, -s}, {s, 0f}, {0f, s}, {-s, 0f}};
         for (int i = 0; i < 4; i++) {
             float x = cx + pos[i][0], y = cy + pos[i][1];
             int idx = first + i;
@@ -288,49 +303,64 @@ final class DiamondHotbar {
         g.pose().popPose();
     }
 
+    private static int mix(int a, int b, float t) {
+        t = PlayerBlock.clamp01(t);
+        int r = Math.round(((a >> 16) & 255) * (1f - t) + ((b >> 16) & 255) * t);
+        int gg = Math.round(((a >> 8) & 255) * (1f - t) + ((b >> 8) & 255) * t);
+        int bb = Math.round((a & 255) * (1f - t) + (b & 255) * t);
+        int al = Math.round(((a >>> 24) & 255) * (1f - t) + ((b >>> 24) & 255) * t);
+        return al << 24 | r << 16 | gg << 8 | bb;
+    }
+
     /**
-     * Symmetric row: one long slanted bar under the whole row, 14 segments, filling from the big slot outwards to the left,
-     * with the level badge on its left end.
+     * Modular row: the XP bar is a ring of segments running around the big slot (24 segments, clockwise from the bottom
+     * tip), with the level badge sitting on the bottom tip like the crest's stud. It costs no extra space.
      */
-    private static void xpBar(GuiGraphics g, Font font, Player p, long now) {
+    private static void xpRing(GuiGraphics g, Font font, Player p, long now, float rm) {
         Matrix4f m = g.pose().last().pose();
-        final int n = 14;
-        float st = 2f * B + 2f * GP;
-        float y0 = B + 5.6f, h = 4.6f, y1 = y0 + h, ins = 0.9f, gap = 1.1f;
-        float xr = B + 1f, xl = -(3f * st + B) - 1f, len = xr - xl;
-        float sl = (len - (n - 1) * gap) / n;
-        float prog = PlayerBlock.clamp01(p.experienceProgress) * n;
-        float wave = (now % 3200L) / 3200f * (n + 4) - 2f;
-        for (int i = 0; i < n; i++) {
-            float x1 = xr - i * (sl + gap), x0 = x1 - sl;
-            poly(m, withAlpha(GOLD, 95), lean(x0 - 0.6f, x1 + 0.6f, y0, y0 - 0.6f, y1 + 0.6f));
-            poly(m, withAlpha(INK, 240), lean(x0, x1, y0, y0, y1));
-            float f = PlayerBlock.clamp01(prog - i);
-            if (f <= 0.001f) continue;
-            float xa = x1 - sl * f;
-            float[] q = lean(xa, x1, y0, y0 + ins, y1 - ins);
-            polyColors(m, 0f, q, new int[] {XP_TOP, XP_TOP, XP_BOT, XP_BOT});
-            float kk = Math.max(0f, 1f - Math.abs(i - wave) / 1.8f);
-            if (kk > 0f) poly(m, withAlpha(WHITE, Math.round(70 * kk)), q);
-            if (f < 0.999f) line(m, withAlpha(WHITE, 235), q[0], q[1], q[6], q[7], 0.9f);
+        final int per = 6;
+        final float r2 = 0.70710678f, r = rm + 4.4f, hw = 1.15f, gp = 1.0f;
+        float len = r * 1.41421356f, seg = len / per;
+        float prog = PlayerBlock.clamp01(p.experienceProgress) * per * 4f;
+        float wave = (now % 3200L) / 3200f * (per * 4 + 4) - 2f;
+        float[][] v = {{0f, r}, {-r, 0f}, {0f, -r}, {r, 0f}};              // bottom, left, top, right
+        float[][] u = {{-r2, -r2}, {r2, -r2}, {r2, r2}, {-r2, r2}};         // direction along each edge
+        for (int e = 0; e < 4; e++) {
+            float ax = v[e][0], ay = v[e][1], ux = u[e][0], uy = u[e][1], nx = -uy, ny = ux;
+            for (int j = 0; j < per; j++) {
+                int k = e * per + j;
+                float t0 = j * seg + gp / 2f, t1 = (j + 1) * seg - gp / 2f;
+                if (k == 0) t0 += 3.5f;                                      // the badge covers the bottom tip
+                if (k == per * 4 - 1) t1 -= 3.5f;
+                poly(m, withAlpha(GOLD, 95), band(ax, ay, ux, uy, nx, ny, t0 - 0.5f, t1 + 0.5f, hw + 0.5f));
+                poly(m, withAlpha(INK, 240), band(ax, ay, ux, uy, nx, ny, t0, t1, hw));
+                float f = PlayerBlock.clamp01(prog - k);
+                if (f <= 0.001f) continue;
+                float tb = t0 + (t1 - t0) * f;
+                float[] q = band(ax, ay, ux, uy, nx, ny, t0, tb, hw - 0.4f);
+                int[] cols = new int[4];
+                for (int i = 0; i < 4; i++) cols[i] = mix(XP_TOP, XP_BOT, (q[i * 2 + 1] + r) / (2f * r));
+                polyColors(m, 0f, q, cols);
+                float kk = Math.max(0f, 1f - Math.abs(k - wave) / 1.8f);
+                if (kk > 0f) poly(m, withAlpha(WHITE, Math.round(70 * kk)), q);
+                if (f < 0.999f) {
+                    float ex = ax + ux * tb, ey = ay + uy * tb, hh = hw - 0.4f;
+                    line(m, withAlpha(WHITE, 235), ex - nx * hh, ey - ny * hh, ex + nx * hh, ey + ny * hh, 0.8f);
+                }
+            }
         }
-        float bx = xl - 8f, by = (y0 + y1) / 2f, hw = 7f;
-        poly(m, GOLD, roundedDiamond(bx, by, hw + 1.2f, hw + 1.2f, 3.8f));
-        poly(m, INK, roundedDiamond(bx, by, hw, hw, 3.4f));
-        poly(m, withAlpha(XP_TOP, 150), roundedDiamond(bx, by, hw - 0.9f, hw - 0.9f, 3.1f));
-        poly(m, argb(20, 44, 36, 255), roundedDiamond(bx, by, hw - 1.7f, hw - 1.7f, 2.7f));
+        float bx = 0f, by = r + 0.5f, bw = 6.6f;
+        poly(m, GOLD, roundedDiamond(bx, by, bw + 1.2f, bw + 1.2f, 3.6f));
+        poly(m, INK, roundedDiamond(bx, by, bw, bw, 3.2f));
+        poly(m, withAlpha(XP_TOP, 150), roundedDiamond(bx, by, bw - 0.9f, bw - 0.9f, 2.9f));
+        poly(m, argb(20, 44, 36, 255), roundedDiamond(bx, by, bw - 1.7f, bw - 1.7f, 2.5f));
         String lvl = String.valueOf(Math.min(999, p.experienceLevel));
-        float ts = lvl.length() >= 3 ? 0.58f : lvl.length() == 2 ? 0.78f : 0.95f;
+        float ts = lvl.length() >= 3 ? 0.56f : lvl.length() == 2 ? 0.74f : 0.92f;
         g.pose().pushPose();
         g.pose().translate(bx, by - 3.5f * ts, 0f);
         g.pose().scale(ts, ts, 1f);
         g.drawString(font, lvl, Math.round(-font.width(lvl) / 2f), 0, BONE, true);
         g.pose().popPose();
-    }
-
-    /** Parallelogram between xl..xr at the top edge y0, leaning down-left, covering ya..yb. */
-    private static float[] lean(float xl, float xr, float y0, float ya, float yb) {
-        return new float[] {xl - (ya - y0), ya, xr - (ya - y0), ya, xr - (yb - y0), yb, xl - (yb - y0), yb};
     }
 
     /** Rectangle along the arm from t0 to t1 with the given half width. */

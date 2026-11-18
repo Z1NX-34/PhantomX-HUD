@@ -81,15 +81,9 @@ final class GaugeSlots {
         float cx = PlayerBlock.CX, cy = PlayerBlock.CY, rg = PlayerBlock.R + 3f;
         float bottom = cy - 1.5f;                          // lowest pixel stays above the crest's middle line
 
-        float ym = bottom - HS_MANA;
-        float x = cx + rg - Math.abs(ym - cy) + HS_MANA + GAP + 0.2f;
-        float[] mana = ResourceSources.mana();
-        x = refill(g, font, x, ym, HS_MANA, 0, mana == null ? 0f : mana[0] / mana[1], argb(54, 100, 190, 255), argb(24, 46, 110, 255),
-                mana == null ? "-" : fmt(mana[0]), mana == null ? "" : "/" + fmt(mana[1]), mana != null);
-
         float ys = bottom - HS_SMALL;
         float[] ar = armor(p);
-        x += HS_SMALL;
+        float x = cx + rg - Math.abs(ys - cy) + GAP + 0.2f + HS_SMALL;       // where the mana diamond used to start
         x = refill(g, font, x, ys, HS_SMALL, 1, ar[0] / ar[1], argb(88, 104, 138, 255), argb(44, 54, 84, 255),
                 fmt(ar[0]), "/" + fmt(ar[1]), true);
 

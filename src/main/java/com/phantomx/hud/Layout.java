@@ -22,7 +22,7 @@ import org.lwjgl.glfw.GLFW;
 /**
  * User layout: every module of the HUD can be moved and resized. A module's saved transform is an offset (GUI pixels) and
  * a size multiplier applied about the module's own anchor point, so the default (no file, or "reset") is exactly the
- * normal PhantomX layout. Saved to config/phantomx_hud-layout.json. The edit screen is LayoutScreen.
+ * normal PhantomZ layout. Saved to config/phantomx_hud-layout.json. The edit screen is LayoutScreen.
  */
 final class Layout {
     private Layout() {}
@@ -43,9 +43,9 @@ final class Layout {
         }
     }
 
-    /** How the item module is arranged: the original diamond cluster, or the symmetric row (big slot far right, clumps to its left). */
+    /** How the item module is arranged: the original diamond cluster, or the modular row (big slot far right, clumps to its left). */
     enum ItemsStyle {
-        CLUSTER("Default"), ROW("Symmetric");
+        CLUSTER("Default"), ROW("Modular");
 
         final String label;
 
@@ -211,7 +211,9 @@ final class Layout {
                 float ms = s * HudConfig.MODULE_SCALE.get().floatValue();
                 if (itemsStyle() == ItemsStyle.ROW) {
                     float[] c = DiamondHotbar.rowCenter(sw, sh, s);
-                    return new Frame(c[0], c[1], ms, -171f, -28f, 25f, 38f);
+                    float rm = DiamondHotbar.rowMainHalf();
+                    float left = rm + DiamondHotbar.ROW_GAP + 2f * 21f + 2f * (2f * 21f + 3.2f) + 4f;
+                    return new Frame(c[0], c[1], ms, -left, -(rm + 8f), rm + 8f, rm + 14f);
                 }
                 return new Frame(sw - ms * HudConfig.MODULE_MARGIN_X.get(), sh - ms * HudConfig.MODULE_MARGIN_Y.get(), ms,
                         -(ITEMS_EXT_R + 42f), -(ITEMS_EXT_B + 54f), 2f, 2f);
@@ -224,7 +226,7 @@ final class Layout {
             }
             case COMPASS: {
                 float half = HudConfig.COMPASS_WIDTH.get() / 2f + 6f;
-                return new Frame(sw / 2f, 5f, s, -half - 20f, -6f, half + 20f, 26f);
+                return new Frame(sw / 2f, 5f, s, -half - 21f, -6f, half + 21f, 26f);
             }
             case BOSS: {
                 int k = Math.max(1, Math.min(BossBars.count(), HudConfig.BOSS_MAX.get()));

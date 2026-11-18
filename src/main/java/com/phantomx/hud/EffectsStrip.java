@@ -82,16 +82,16 @@ final class EffectsStrip {
             }
             // level as a roman numeral right next to the icon, on the plate (white, no background, never over the icon)
             String lv = e.getAmplifier() > 0 ? roman(e.getAmplifier() + 1) : null;
-            float lvs = 0.95f, lvw = lv == null ? 0f : font.width(lv) * lvs;
+            float lvs = 0.9f, lvw = lv == null ? 0f : font.width(lv) * lvs;
             float numRight = xd - 9.6f, numLeft = numRight - lvw;
             float textRoom = (lv == null ? xc - 3f : numLeft - 3.5f) - (xl + sk + 4.0f);
             if (infinite) {
-                bold(g, font, "\u221e", xl + sk + 4.2f, t - 1.0f, 1.6f, WHITE);
+                plain(g, font, "\u221e", xl + sk + 4.2f, t - 0.4f, 1.5f, WHITE);
             } else {
-                float tsc = Math.max(0.7f, Math.min(1.0f, textRoom / Math.max(1f, font.width(tm))));
-                bold(g, font, tm, xl + sk + 4.0f, t + 1.5f + (1.0f - tsc) * 2f, tsc, tc);
+                float tsc = Math.max(0.7f, Math.min(0.92f, textRoom / Math.max(1f, font.width(tm))));
+                plain(g, font, tm, xl + sk + 4.0f, t + 2.0f + (1.0f - tsc) * 2f, tsc, tc);
             }
-            if (lv != null) bold(g, font, lv, numLeft, yc - 7f * lvs / 2f - 0.9f, lvs, WHITE);
+            if (lv != null) plain(g, font, lv, numLeft, yc - 7f * lvs / 2f - 0.9f, lvs, WHITE);
 
             // draining bar along the bottom of the plate
             float frac = 1f;
@@ -124,25 +124,12 @@ final class EffectsStrip {
         g.pose().popPose();
     }
 
-    /** Text with a dark outline and a doubled stroke so it stays readable on any background. */
-    private static void bold(GuiGraphics g, Font font, String text, float x, float y, float scale, int color) {
-        int dark = argb(8, 6, 16, 255);
-        float o = 0.9f / scale;
+    /** Normal Minecraft text (with its usual drop shadow) at a given scale. */
+    private static void plain(GuiGraphics g, Font font, String text, float x, float y, float scale, int color) {
         g.pose().pushPose();
         g.pose().translate(x, y, 0f);
         g.pose().scale(scale, scale, 1f);
-        float[][] offs = {{-o, 0}, {o, 0}, {0, -o}, {0, o}, {-o, -o}, {o, -o}, {-o, o}, {o, o}};
-        for (float[] d : offs) {
-            g.pose().pushPose();
-            g.pose().translate(d[0], d[1], 0f);
-            g.drawString(font, text, 0, 0, dark, false);
-            g.pose().popPose();
-        }
-        g.drawString(font, text, 0, 0, color, false);
-        g.pose().pushPose();
-        g.pose().translate(0.5f, 0f, 0f);
-        g.drawString(font, text, 0, 0, color, false);
-        g.pose().popPose();
+        g.drawString(font, text, 0, 0, color, true);
         g.pose().popPose();
     }
 

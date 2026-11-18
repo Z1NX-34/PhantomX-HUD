@@ -32,7 +32,7 @@ final class LayoutScreen extends Screen {
     private float guideX = Float.NaN, guideY = Float.NaN;
 
     LayoutScreen() {
-        super(Component.literal("PhantomX HUD layout"));
+        super(Component.literal("PhantomZ HUD layout"));
     }
 
     @Override

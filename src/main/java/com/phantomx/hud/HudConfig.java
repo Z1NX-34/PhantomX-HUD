@@ -17,13 +17,13 @@ public final class HudConfig {
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
         b.push("hud");
-        ENABLED = b.comment("Master switch. false = PhantomX HUD draws nothing and the normal HUD comes back.").define("enabled", true);
+        ENABLED = b.comment("Master switch. false = PhantomZ HUD draws nothing and the normal HUD comes back.").define("enabled", true);
         HIDE_OTHER_HUDS = b.comment("Also hide Souls Combat HUD's player gauge, XP, skill, equipment and boss overlays (only matters if that mod is installed).").define("hide_souls_combat_hud_overlays", true);
         SCALE = b.comment("Size multiplier (1.0 = default, which is already 10% smaller than the original sizes).").defineInRange("scale", 1.0, 0.5, 2.5);
         b.pop();
         b.push("player");
-        MARGIN_X = b.comment("Player block distance from the left edge (GUI pixels).").defineInRange("margin_x", 10, 0, 400);
-        MARGIN_Y = b.comment("Player block distance from the bottom edge (GUI pixels).").defineInRange("margin_y", 6, 0, 400);
+        MARGIN_X = b.comment("Player block distance from the left edge (GUI pixels).").defineInRange("margin_x", 3, 0, 400);
+        MARGIN_Y = b.comment("Player block distance from the bottom edge (GUI pixels).").defineInRange("margin_y", 4, 0, 400);
         SHOW_CHIPS = b.comment("The three refill diamonds (mana, armor, hunger) above the health bar.").define("show_armor_food", true);
         SHOW_MANA_BAR = b.comment("Mana bar (Iron's Spells) under the stamina bar.").define("show_mana_bar", true);
         SHOW_MOUNT = b.comment("Health bar of the mount you ride (centre, above the jump / charge bar). Also hides the vanilla / modded mount health overlay.").define("show_mount_bar", true);
@@ -33,8 +33,8 @@ public final class HudConfig {
         b.pop();
         b.push("hotbar");
         SHOW_HOTBAR = b.comment("Replace the vanilla hotbar with the diamond slot module at the bottom-right.").define("show_hotbar", true);
-        MODULE_MARGIN_X = b.comment("Diamond module distance from the right edge (GUI pixels).").defineInRange("module_margin_x", 8, 0, 400);
-        MODULE_MARGIN_Y = b.comment("Diamond module distance from the bottom edge (GUI pixels).").defineInRange("module_margin_y", 8, 0, 400);
+        MODULE_MARGIN_X = b.comment("Diamond module distance from the right edge (GUI pixels).").defineInRange("module_margin_x", 3, 0, 400);
+        MODULE_MARGIN_Y = b.comment("Diamond module distance from the bottom edge (GUI pixels).").defineInRange("module_margin_y", 5, 0, 400);
         MODULE_SCALE = b.comment("Size multiplier of the diamond module only (on top of the general scale).").defineInRange("module_scale", 1.0, 0.5, 2.0);
         b.pop();
         b.push("effects");
@@ -46,7 +46,7 @@ public final class HudConfig {
         SKILLS_Y = b.comment("Gap between the crest top and the row of the other Epic Fight skills (GUI pixels).").defineInRange("skills_gap", 10, 0, 300);
         b.pop();
         b.push("boss");
-        SHOW_BOSS = b.comment("Replace every vanilla-style boss bar (including other mods' custom bosses that use boss events) with the PhantomX one.").define("show_boss_bars", true);
+        SHOW_BOSS = b.comment("Replace every vanilla-style boss bar (including other mods' custom bosses that use boss events) with the PhantomZ one.").define("show_boss_bars", true);
         AUTO_HIDE_BOSS = b.comment("Also hide other mods' own boss bar overlays (any overlay whose id contains 'boss'). Intro / title overlays are left alone.").define("hide_other_boss_overlays", true);
         BOSS_MAX = b.comment("Maximum number of boss bars shown at once.").defineInRange("max_boss_bars", 3, 1, 8);
         b.pop();
@@ -59,7 +59,7 @@ public final class HudConfig {
         COMPASS_VERTICAL = b.comment("Markers with a known height more than this many blocks above/below you are hidden (underground markers). 0 = off.").defineInRange("compass_marker_vertical_limit", 0, 0, 1000);
         b.pop();
         b.push("layout");
-        HIDE_OVERLAYS = b.comment("Other mods' HUD overlays to hide while PhantomX HUD is on. 'modid:*' hides every overlay of a mod, a trailing * matches a prefix.")
+        HIDE_OVERLAYS = b.comment("Other mods' HUD overlays to hide while PhantomZ HUD is on. 'modid:*' hides every overlay of a mod, a trailing * matches a prefix.")
                 .defineList("hide_overlays", java.util.List.of(), o -> o instanceof String);
         BUILTIN_HIDE = b.comment("Always hide Epic Fight's HUD and Iron's Spells' mana bar / spell slots, even if the list above is an old one. The list is only additional.").define("hide_builtin_mod_overlays", true);
         MOVE_CHAT = b.comment("Move the chat out of the way of the player block and the equipment slots.").define("move_chat", false);

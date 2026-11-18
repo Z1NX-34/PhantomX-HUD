@@ -161,7 +161,7 @@ final class PlayerBlock {
 
     private static final float HEALTH_Y = 3f;                                       // relative to the crest centre
     private static final float STAMINA_Y = HEALTH_Y + HEALTH_H + 2.9f;               // frames leave a clear 1px line between them
-    private static final float MANA_Y = STAMINA_Y + STAMINA_H + 2.9f, MANA_H = 6f;
+    private static final float MANA_Y = STAMINA_Y + STAMINA_H + 2.9f, MANA_H = 6f, MANA_LEN = 104f;
 
     private static void drawBars(GuiGraphics g, Font font, Player p, float dt) {
         float hp = clamp01(p.getHealth() / Math.max(1f, p.getMaxHealth()));
@@ -182,7 +182,7 @@ final class PlayerBlock {
         if (HudConfig.SHOW_MANA_BAR.get()) {
             float[] mn = ResourceSources.mana();
             if (mn != null) {
-                bar(g, font, CY + MANA_Y, MANA_H, STAMINA_LEN, clamp01(mn[0] / mn[1]), argb(92, 154, 255, 255), argb(36, 74, 176, 255), -1f,
+                bar(g, font, CY + MANA_Y, MANA_H, MANA_LEN, clamp01(mn[0] / mn[1]), argb(92, 154, 255, 255), argb(36, 74, 176, 255), -1f,
                         Math.round(mn[0]) + "/" + Math.round(mn[1]));
             }
         }

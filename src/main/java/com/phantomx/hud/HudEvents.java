@@ -73,7 +73,7 @@ public final class HudEvents {
 
         @SubscribeEvent
         public static void commands(net.minecraftforge.client.event.RegisterClientCommandsEvent e) {
-            e.getDispatcher().register(net.minecraft.commands.Commands.literal("phantomxhud")
+            var node = e.getDispatcher().register(net.minecraft.commands.Commands.literal("phantomzhud")
                     .then(net.minecraft.commands.Commands.literal("edit").executes(c -> {
                         Layout.openRequested = true;
                         return 1;
@@ -87,10 +87,11 @@ public final class HudEvents {
                                 Layout.setItemsStyle(Layout.ItemsStyle.CLUSTER);
                                 return 1;
                             }))
-                            .then(net.minecraft.commands.Commands.literal("symmetric").executes(c -> {
+                            .then(net.minecraft.commands.Commands.literal("modular").executes(c -> {
                                 Layout.setItemsStyle(Layout.ItemsStyle.ROW);
                                 return 1;
                             }))));
+            e.getDispatcher().register(net.minecraft.commands.Commands.literal("phantomxhud").redirect(node));   // old name keeps working
         }
 
         private static final ResourceLocation ADV_COMPASS = new ResourceLocation("advancedcompass", "compass");
@@ -269,7 +270,7 @@ public final class HudEvents {
             StringBuilder sb = new StringBuilder();
             for (NamedGuiOverlay o : GuiOverlayManager.getOverlays()) sb.append(o.id()).append(", ");
             LOG.info("Registered HUD overlays: {}", sb);
-            StringBuilder file = new StringBuilder("# Every HUD overlay id registered in this game (written by PhantomX HUD at startup).\n"
+            StringBuilder file = new StringBuilder("# Every HUD overlay id registered in this game (written by PhantomZ HUD at startup).\n"
                     + "# Add ids you want hidden to hide_overlays in phantomx_hud-client.toml ('modid:*' hides a whole mod).\n");
             for (NamedGuiOverlay o : GuiOverlayManager.getOverlays()) file.append(o.id()).append('\n');
             Files.writeString(FMLPaths.CONFIGDIR.get().resolve("phantomx_hud-overlays.txt"), file.toString());
